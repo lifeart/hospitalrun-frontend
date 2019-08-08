@@ -1,7 +1,9 @@
-import Ember from 'ember';
-export default Ember.Mixin.create({
-  canEdit: function() {
+import Mixin from '@ember/object/mixin';
+import { computed } from '@ember/object';
+
+export default Mixin.create({
+  canEdit: computed('status', function() {
     let status = this.get('status');
     return (status === 'Requested');
-  }.property('status')
+  })
 });

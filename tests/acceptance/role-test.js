@@ -1,83 +1,81 @@
-import Ember from 'ember';
+import {
+  click,
+  currentURL,
+  visit
+} from '@ember/test-helpers';
+import jquerySelect from 'hospitalrun/tests/helpers/deprecated-jquery-select';
 import { module, test } from 'qunit';
-import startApp from 'hospitalrun/tests/helpers/start-app';
+import { setupApplicationTest } from 'ember-qunit';
+import runWithPouchDump from 'hospitalrun/tests/helpers/run-with-pouch-dump';
+import select from 'hospitalrun/tests/helpers/select';
+import { waitToAppear } from 'hospitalrun/tests/helpers/wait-to-appear';
+import { authenticateUser, invalidateSession } from 'hospitalrun/tests/helpers/authenticate-user';
 import { PREDEFINED_USER_ROLES } from 'hospitalrun/mixins/user-roles';
 
-module('Acceptance | roles', {
-  beforeEach() {
-    this.application = startApp();
-  },
+module('Acceptance | roles', function(hooks) {
+  setupApplicationTest(hooks);
 
-  afterEach() {
-    Ember.run(this.application, 'destroy');
-  }
-});
-
-test('visiting /admin/roles', function(assert) {
-  runWithPouchDump('admin', function() {
-    authenticateUser();
-    visit('/admin/roles');
-    andThen(function() {
+  test('visiting /admin/roles', function(assert) {
+    return runWithPouchDump('admin', async function() {
+      await authenticateUser();
+      await visit('/admin/roles');
       assert.equal(currentURL(), '/admin/roles');
-      select('.role-select', 'Doctor');
-    });
-    andThen(() => {
-      assert.equal(find('.checkbox-appointments input:checked').length, 0, 'Appointments checkbox is not checked');
-      assert.equal(find('.checkbox-addAppointment input:checked').length, 0, 'Add appointments checkbox is not checked');
-    });
-    click('.checkbox-appointments input');
-    click('.checkbox-addAppointment input');
-    andThen(() => {
-      assert.equal(find('.checkbox-appointments input:checked').length, 1, 'Appointments checkbox is checked');
-      assert.equal(find('.checkbox-addAppointment input:checked').length, 1, 'Add appointments checkbox is checked');
-      click('button:contains(Update)');
-      waitToAppear('.modal-dialog');
-    });
-    andThen(() => {
-      assert.equal(find('.modal-title').text(), 'Role Saved', 'Role has been saved');
-      assert.equal(find('.modal-body').text().trim(), 'The Doctor role has been saved.', 'Doctor role has been saved');
-      click('button:contains(Ok)');
-      invalidateSession();
-      visit('/login');
-    });
-    andThen(() => {
-      authenticateUser({
+
+      await select('.role-select', 'Doctor');
+      assert.dom('.checkbox-appointments input').isNotChecked('Appointments checkbox is not checked');
+      assert.dom('.checkbox-addAppointment input').isNotChecked('Add appointments checkbox is not checked');
+
+      await click('.checkbox-appointments input');
+      await click('.checkbox-addAppointment input');
+      assert.dom('.checkbox-appointments input').isChecked('Appointments checkbox is checked');
+      assert.dom('.checkbox-addAppointment input').isChecked('Add appointments checkbox is checked');
+
+      await click(jquerySelect('button:contains(Update)'));
+      await waitToAppear('.modal-dialog');
+      assert.dom('.modal-title').hasText('Role Saved', 'Role has been saved');
+      assert.dom('.modal-body').hasText('The Doctor role has been saved.', 'Doctor role has been saved');
+
+      await click(jquerySelect('button:contains(Ok)'));
+      await invalidateSession();
+      await visit('/login');
+
+      await authenticateUser({
         name: 'doctor@hospitalrun.io',
         roles: ['Doctor', 'user'],
         role: 'Doctor',
         prefix: 'p1'
       });
-    });
-    visit('/appointments/edit/new');
-    andThen(function() {
+
+      await visit('/appointments/edit/new');
       assert.equal(currentURL(), '/appointments/edit/new', 'Doctor can now navigate to new appointments');
-      assert.equal(find('.view-current-title').text(), 'New Appointment', 'New appointment screen displays');
+      assert.dom('.view-current-title').hasText('New Appointment', 'New appointment screen displays');
     });
   });
-});
 
-PREDEFINED_USER_ROLES.forEach((role) => {
-  if (role.defaultRoute && role.name !== 'User Administrator') {
-    test(`Testing User Role homescreen for ${role.name}`, (assert) =>{
-      runWithPouchDump('default', () => {
-        authenticateUser({
-          roles: role.roles,
-          role: role.name,
-          authenticated: {
-            role: role.name
-          }
-        });
-        visit('/');
-        waitToAppear('.view-current-title');
-        andThen(() => {
+  PREDEFINED_USER_ROLES.forEach((role) => {
+    if (role.defaultRoute && role.name !== 'User Administrator') {
+      test(`Testing User Role homescreen for ${role.name}`, (assert) =>{
+        return runWithPouchDump('default', async function() {
+          await authenticateUser({
+            roles: role.roles,
+            role: role.name,
+            authenticated: {
+              role: role.name
+            }
+          });
+
+          await visit('/');
+          await waitToAppear('.view-current-title');
+
           let defaultURL = role.defaultRoute.replace('.index', '');
           if (defaultURL === 'users') {
             defaultURL = 'admin/users';
           }
           assert.equal(currentURL(), `/${defaultURL}`, `Correct homepage displays for role ${role.name}`);
-          invalidateSession();
+
+          await invalidateSession();
         });
       });
-    });
-  }
+    }
+  });
 });

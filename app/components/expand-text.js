@@ -1,41 +1,18 @@
-import Ember from 'ember';
+import { inject as service } from '@ember/service';
+import Component from '@ember/component';
+import { htmlSafe } from '@ember/string';
+import { computed } from '@ember/object';
 import textExpansion from '../utils/text-expansion';
 
-const {
-  Component,
-  String: {
-    htmlSafe
-  },
-  computed,
-  inject
-} = Ember;
-
 export default Component.extend({
-  i18n: inject.service(),
-  store: inject.service(),
-
+  intl: service(),
+  store: service(),
   userText: '',
 
   didInsertElement() {
 
-    let feedbackDiv = document.createElement('div');
-    feedbackDiv.style.position = 'absolute';
     let [textarea] = this.$('textarea');
     this.set('textarea', textarea);
-    let textPos = textarea.getBoundingClientRect();
-    let fbStyle = feedbackDiv.style;
-    fbStyle.top = `${textPos.bottom}px`;
-    fbStyle.left = `${textPos.left}px`;
-    fbStyle.width = `${textarea.offsetWidth}px`;
-    // THIS CODE NEEDS TO BE CHANGED -- INLINE STYLES ARE EVIL!
-    fbStyle.backgroundColor = 'lightyellow';
-    fbStyle.borderStyle = 'solid';
-    fbStyle.borderWidth = '1px';
-    fbStyle.borderRadius = '3px';
-    fbStyle.paddingLeft = '5px';
-    fbStyle.visibility = 'hidden';
-
-    this.set('feedbackDiv', feedbackDiv);
     this.get('feedbackText');
     this.get('activeExpansionSite');
 
@@ -48,9 +25,10 @@ export default Component.extend({
         }, {});
       })
       .then((expansions) => {
-        this.set('expansions', expansions);
+        if (!(this.get('isDestroyed') || this.get('isDestroying'))) {
+          this.set('expansions', expansions);
+        }
       });
-
   },
 
   keyUp(k) {
@@ -121,22 +99,22 @@ export default Component.extend({
   expansionText: computed('possibleSwaps', 'activeExpansionSite', 'userText', function() {
     let result = '';
 
-    let i18n = this.get('i18n');
+    let intl = this.get('intl');
     let possibleSwaps = this.get('possibleSwaps');
     if (possibleSwaps) {
       let activeSite = this.get('activeExpansionSite');
 
       if (possibleSwaps.length === 1) {
         let swapTo = possibleSwaps[0].to;
-        result = i18n.t('admin.textReplacements.performExpand', { from: activeSite.term, to: swapTo });
+        result = intl.t('admin.textReplacements.performExpand', { from: activeSite.term, to: swapTo });
       } else if (possibleSwaps.length > 1) {
         let possible = possibleSwaps
           .map((swap) => {
             return swap.from;
           }).join(', ');
-        result = i18n.t('admin.textReplacements.possibleExpansions', { possible });
+        result = intl.t('admin.textReplacements.possibleExpansions', { possible });
       } else {
-        result = i18n.t('admin.textReplacements.noMatches', { term: activeSite.term });
+        result = intl.t('admin.textReplacements.noMatches', { term: activeSite.term });
       }
     }
 

@@ -1,14 +1,15 @@
-import Ember from 'ember';
+import { inject as service } from '@ember/service';
+import Component from '@ember/component';
+import { isEmpty } from '@ember/utils';
+import { set, get, computed } from '@ember/object';
 
 const TAKE_PICTURE = 'takeAPicture';
 const UPLOAD_FILE = 'uploadAFile';
 const FILE_SOURCES = [TAKE_PICTURE, UPLOAD_FILE];
 
-const { computed, get, inject, isEmpty, set } = Ember;
-
 // Derived from https://developer.mozilla.org/en-US/docs/Web/API/WebRTC_API/Taking_still_photos and
 // https://github.com/samdutton/simpl/blob/master/getusermedia/sources/js/main.js
-export default Ember.Component.extend({
+export default Component.extend({
   defaultPhotoSource: null,
   canvas: null,
   height: 0,
@@ -22,28 +23,27 @@ export default Ember.Component.extend({
   video: null,
   videoSources: null,
   width: 200,
-
-  i18n: inject.service(),
+  intl: service(),
 
   canCaptureVideo: computed(function() {
     return navigator.mediaDevices && navigator.mediaDevices.getUserMedia;
   }),
 
   photoSources: computed(function() {
-    let i18n = get(this, 'i18n');
+    let intl = get(this, 'intl');
     return FILE_SOURCES.map((source) => {
       return {
-        label: i18n.t(`components.takePhoto.labels.${source}`),
+        label: intl.t(`components.takePhoto.labels.${source}`),
         value: source
       };
     });
   }),
 
   sourceChooserLabel: computed('sourceLabel', function() {
-    let i18n = get(this, 'i18n');
+    let intl = get(this, 'intl');
     let sourceLabel = get(this, 'sourceLabel');
     if (isEmpty(sourceLabel)) {
-      return i18n.t('components.takePhoto.how');
+      return intl.t('components.takePhoto.how');
     } else {
       return sourceLabel;
     }
@@ -84,7 +84,7 @@ export default Ember.Component.extend({
     set(this, 'selectedCamera', selectedCamera);
     let stream = get(this, 'stream');
     let video = get(this, 'video');
-    if (!Ember.isEmpty(stream)) {
+    if (!isEmpty(stream)) {
       video.src = null;
       this._stopStream();
     }
@@ -205,7 +205,7 @@ export default Ember.Component.extend({
 
   _stopStream(stream) {
     let streamToStop = stream || get(this, 'stream');
-    if (!Ember.isEmpty(streamToStop)) {
+    if (!isEmpty(streamToStop)) {
       if (typeof streamToStop.active === 'undefined') {
         streamToStop.stop();
       } else {
@@ -242,5 +242,4 @@ export default Ember.Component.extend({
       set(this, 'isImage', true);
     }
   }
-
 });

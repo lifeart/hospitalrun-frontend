@@ -1,8 +1,10 @@
-import Ember from 'ember';
+import { once } from '@ember/runloop';
+import { set } from '@ember/object';
+import Component from '@ember/component';
+import { isEmpty } from '@ember/utils';
+import { computed } from '@ember/object';
 
-const { isEmpty } = Ember;
-
-export default Ember.Component.extend({
+export default Component.extend({
   quantityGroups: [],
   calculated: null,
   currentUnit: null,
@@ -24,30 +26,30 @@ export default Ember.Component.extend({
     }
   },
 
-  showTotal: function() {
+  showTotal: computed('calculated', function() {
     let calculated = this.get('calculated');
     let quantityGroups = this.get('quantityGroups');
-    if (quantityGroups.length > 1 && !Ember.isEmpty(calculated) && !isNaN(calculated)) {
+    if (quantityGroups.length > 1 && !isEmpty(calculated) && !isNaN(calculated)) {
       return true;
     }
     return false;
-  }.property('calculated'),
+  }),
 
-  currentQuantityGroups: function() {
+  currentQuantityGroups: computed('quantityGroups', 'targetUnit', function() {
     let firstQuantityObject;
     let quantityGroups = this.get('quantityGroups');
     let targetUnit = this.get('targetUnit');
     firstQuantityObject = quantityGroups.get('firstObject');
-    if (!Ember.isEmpty(firstQuantityObject)) {
+    if (!isEmpty(firstQuantityObject)) {
       let selectedUnit = firstQuantityObject.unit;
-      if (Ember.isEmpty(selectedUnit)) {
+      if (isEmpty(selectedUnit)) {
         this.set('quantityGroups.firstObject.unit', targetUnit);
       } else {
         this.updateCurrentUnit(selectedUnit, 0);
       }
     }
     return quantityGroups;
-  }.property('quantityGroups', 'targetUnit'),
+  }),
 
   calculateTotal() {
     let quantityGroups = this.get('quantityGroups');
@@ -56,7 +58,7 @@ export default Ember.Component.extend({
     let targetUnit = this.get('targetUnit');
     haveQuantities = quantityGroups.every(function(item) {
       let { quantity, unit } = item;
-      return (!Ember.isEmpty(quantity) && !Ember.isEmpty(unit) && !isNaN(quantity));
+      return !isEmpty(quantity) && !isEmpty(unit) && !isNaN(quantity);
     });
     if (haveQuantities && lastObject.unit === targetUnit) {
       let newValue = quantityGroups.reduce(function(previousValue, item) {
@@ -72,7 +74,7 @@ export default Ember.Component.extend({
     let targetUnit = this.get('targetUnit');
     let quantityGroups = this.get('quantityGroups');
     let groupLength = quantityGroups.length;
-    if (!Ember.isEmpty(targetUnit)) {
+    if (!isEmpty(targetUnit)) {
       if (selectedUnit === targetUnit) {
         // Done
         if (index < (groupLength - 1)) {
@@ -86,10 +88,10 @@ export default Ember.Component.extend({
             index: quantityGroups.length
           });
         } else {
-          Ember.set(quantityGroups.objectAt(index + 1), 'unitName', selectedUnit);
+          set(quantityGroups.objectAt(index + 1), 'unitName', selectedUnit);
         }
       }
-      Ember.run.once(this, this.calculateTotal);
+      once(this, this.calculateTotal);
     }
   }
 });

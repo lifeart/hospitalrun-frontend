@@ -1,374 +1,383 @@
-import Ember from 'ember';
-import { module, test } from 'qunit';
+import { click, fillIn, findAll, currentURL, visit, waitUntil } from '@ember/test-helpers';
+import { findWithAssert } from 'ember-native-dom-helpers';
+import jquerySelect from 'hospitalrun/tests/helpers/deprecated-jquery-select';
+import jqueryLength from 'hospitalrun/tests/helpers/deprecated-jquery-length';
 import moment from 'moment';
-import startApp from 'hospitalrun/tests/helpers/start-app';
+import { module, test } from 'qunit';
+import { setupApplicationTest } from 'ember-qunit';
+import runWithPouchDump from 'hospitalrun/tests/helpers/run-with-pouch-dump';
+import select from 'hospitalrun/tests/helpers/select';
+import selectDate from 'hospitalrun/tests/helpers/select-date';
+import typeAheadFillIn from 'hospitalrun/tests/helpers/typeahead-fillin';
+import { waitToAppear } from 'hospitalrun/tests/helpers/wait-to-appear';
+import { authenticateUser } from 'hospitalrun/tests/helpers/authenticate-user';
 
-module('Acceptance | inventory', {
-  beforeEach() {
-    this.application = startApp();
-  },
+module('Acceptance | inventory', function(hooks) {
+  setupApplicationTest(hooks);
 
-  afterEach() {
-    Ember.run(this.application, 'destroy');
+  test('visiting /inventory', function(assert) {
+    return runWithPouchDump('default', async function() {
+      await authenticateUser();
+      await visit('/inventory');
+      assert.equal(currentURL(), '/inventory');
+      findWithAssert(jquerySelect('button:contains(new request)'));
+      findWithAssert(jquerySelect('button:contains(+ Inventory Received)'));
+      findWithAssert(jquerySelect('p:contains(No requests found. )'));
+      findWithAssert(jquerySelect('a:contains(Create a new request?)'));
+    });
+  });
+
+  test('Adding a new inventory item', (assert) => {
+    return runWithPouchDump('default', async function() {
+      await authenticateUser();
+      await visit('/inventory/edit/new');
+      assert.equal(currentURL(), '/inventory/edit/new');
+
+      await fillIn('.test-inv-name input', 'Biogesic');
+      await select('.test-inv-rank', 'B');
+      await fillIn('textarea', 'Biogesic nga medisina');
+      await select('.test-inv-type', 'Medication');
+      await fillIn('.test-inv-cross input', '2600');
+      await fillIn('.test-inv-reorder input', '100');
+      await fillIn('.test-inv-price input', '5');
+      await select('.test-inv-dist-unit', 'tablet');
+      await fillIn('.test-inv-quantity input', '1000');
+      await fillIn('.test-inv-cost input', '4000');
+      await select('.test-inv-unit', 'tablet');
+      await typeAheadFillIn('.test-vendor', 'Alpha Pharmacy');
+      await click(jquerySelect('button:contains(Add)'));
+      await waitToAppear('.modal-dialog');
+      assert.dom('.modal-title').hasText('Inventory Item Saved', 'Inventory Item was saved successfully');
+
+      await click(jquerySelect('button:contains(Ok)'));
+      findWithAssert(jquerySelect('button:contains(Add Purchase)'));
+      findWithAssert(jquerySelect('button:contains(Update)'));
+      findWithAssert(jquerySelect('button:contains(Return)'));
+
+      await click(jquerySelect('button:contains(Add Purchase)'));
+      await waitToAppear('.modal-dialog');
+      await fillIn('.test-inv-quantity div div input', 18);
+      await fillIn('.test-inv-cost div input', 2);
+      await fillIn(findAll('.test-vendor div span input')[1], 'fakeVendor');
+      await click('.modal-footer .btn-primary');
+      assert.dom('div.alert.alert-danger.alert-dismissible').doesNotExist('Quantity error does not appear');
+      assert.dom($('.test-location-quantity')[0]).hasText('1018', 'Location quantity is correct after new purchase');
+      assert.dom('.test-inv-quantity p').hasText('1018', 'Item total quantity is correct after new purchase');
+
+      await click(jquerySelect('button:contains(Return)'));
+
+      await waitUntil(() => currentURL() === '/inventory/listing');
+      assert.equal(currentURL(), '/inventory/listing');
+
+      assert.dom('tr').exists({ count: 2 }, 'One item is listed');
+    });
+  });
+
+  test('Items with negative quantites should not be saved', (assert) => {
+    return runWithPouchDump('default', async function() {
+      await authenticateUser();
+      await visit('/inventory/edit/new');
+      assert.equal(currentURL(), '/inventory/edit/new');
+
+      await fillIn('.test-inv-name input', 'Biogesic');
+      await select('.test-inv-rank', 'B');
+      await fillIn('textarea', 'Biogesic nga medisina');
+      await select('.test-inv-type', 'Medication');
+      await fillIn('.test-inv-cross input', '2600');
+      await fillIn('.test-inv-reorder input', '100');
+      await fillIn('.test-inv-price input', '5');
+      await select('.test-inv-dist-unit', 'tablet');
+      await fillIn('.test-inv-quantity input', '-1000');
+      await fillIn('.test-inv-cost input', '4000');
+      await select('.test-inv-unit', 'tablet');
+      await typeAheadFillIn('.test-vendor', 'Alpha Pharmacy');
+      await click(jquerySelect('button:contains(Add)'));
+      await waitToAppear('.modal-dialog');
+
+      assert.dom('.modal-title').hasText(
+        'Warning!!!!',
+        'Inventory Item with negative quantity should not be saved.'
+      );
+
+      await click(jquerySelect('button:contains(Ok)'));
+      assert.equal(currentURL(), '/inventory/edit/new');
+      findWithAssert(jquerySelect('button:contains(Add)'));
+      findWithAssert(jquerySelect('button:contains(Cancel)'));
+      assert.dom('.test-inv-quantity .help-block').hasText(
+        'not a valid number',
+        'Error message should be present for invalid quantities'
+      );
+    });
+  });
+
+  test('Visiting /inventory/barcode', (assert) => {
+    return runWithPouchDump('inventory', async function() {
+      await authenticateUser();
+      await visit('/inventory/listing');
+      assert.equal(currentURL(), '/inventory/listing');
+
+      await click(jquerySelect('a:contains(Barcode)'));
+      assert.equal(currentURL(), '/inventory/barcode/igbmk5zf_is');
+      findWithAssert('.panel-body img[src^="data:image"]');
+    });
+  });
+
+  test('Deleting the last inventory item', (assert) => {
+    return runWithPouchDump('inventory', async function() {
+      await authenticateUser();
+      await visit('/inventory/listing');
+      assert.equal(currentURL(), '/inventory/listing');
+
+      await click(jquerySelect('button:contains(Delete)'));
+      await waitToAppear('.modal-dialog');
+      assert.dom('.modal-title').hasText('Delete Item', 'Deleting confirmation.');
+
+      await click(jquerySelect('.modal-content button:contains(Delete)'));
+      await waitToAppear('.panel-body .alert-info');
+      assert.equal(currentURL(), '/inventory/listing');
+      findWithAssert(jquerySelect('a:contains(Create a new record?)'));
+    });
+  });
+
+  test('Creating a new inventory request', function(assert) {
+    return runWithPouchDump('inventory', async function() {
+      await authenticateUser();
+      await visit('/inventory/request/new');
+      assert.equal(currentURL(), '/inventory/request/new');
+
+      await typeAheadFillIn('.test-inv-item', 'Biogesic - m00001 (1000 available)');
+      await fillIn('.test-inv-quantity input', 500);
+      await typeAheadFillIn('.test-delivery-location', 'Harare');
+      await typeAheadFillIn('.test-delivery-aisle', 'C100');
+      await typeAheadFillIn('.test-bill-to', 'Accounts Dept');
+      await click(jquerySelect('button:contains(Add)'));
+      await waitToAppear('.modal-dialog');
+      assert.dom('.modal-title').hasText('Request Updated', 'New request has been saved');
+
+      await click(jquerySelect('button:contains(Ok)'));
+      findWithAssert(jquerySelect('button:contains(Fulfill)'));
+      findWithAssert(jquerySelect('button:contains(Cancel)'));
+
+      await click(jquerySelect('button:contains(Cancel)'));
+      await waitUntil(() => currentURL() === '/inventory');
+      assert.equal(currentURL(), '/inventory');
+      assert.dom('tr').exists({ count: 3 }, 'Two requests are now displayed');
+    });
+  });
+
+  test('Fulfilling an inventory request', function(assert) {
+    return runWithPouchDump('inventory', async function() {
+      await authenticateUser();
+      await visit('/inventory');
+      assert.equal(currentURL(), '/inventory');
+      let tableRows = findAll('tr').length;
+      assert.equal(tableRows, 2, 'One request not fulfilled');
+
+      await click(jquerySelect('button:contains(Fulfill)'));
+      findWithAssert(jquerySelect('button:contains(Fulfill)'));
+      findWithAssert(jquerySelect('button:contains(Cancel)'));
+
+      await waitToAppear(jquerySelect('.inventory-location option:contains(No Location)'));
+      await click(jquerySelect('button:contains(Fulfill)'));
+      await waitToAppear('.modal-dialog');
+
+      assert.dom('.modal-title').hasText('Request Fulfilled', 'Inventory request has been fulfilled');
+
+      await click(jquerySelect('button:contains(Ok)'));
+
+      await waitUntil(() => currentURL() === '/inventory');
+      assert.equal(currentURL(), '/inventory');
+    });
+  });
+
+  test('Deleting an inventory request', function(assert) {
+    return runWithPouchDump('inventory', async function() {
+      await authenticateUser();
+      await visit('/inventory');
+      assert.equal(currentURL(), '/inventory', 'Navigated to /inventory');
+      assert.equal(jqueryLength('button:contains(Delete)'), 1, 'There is one request');
+
+      await click(jquerySelect('button:contains(Delete)'));
+      await waitToAppear('.modal-dialog');
+      assert.dom('.modal-title').hasText('Delete Item', 'Deleting confirmation');
+
+      await click(jquerySelect('.modal-content button:contains(Delete)'));
+      await waitToAppear('.panel-body .alert-info');
+      assert.equal(currentURL(), '/inventory', 'Navigated to /inventory');
+      assert.equal(jqueryLength('button:contains(Delete)'), 0, 'Request was deleted');
+    });
+  });
+
+  test('User with add_inventory_request and without fulfill_inventory rights should not be able to delete others\' requests', function(assert) {
+    return runWithPouchDump('inventory', async function() {
+      await authenticateUser({
+        name: 'nurse.mgr',
+        roles: ['Nurse Manager', 'user'],
+        role: 'Nurse Manager'
+      });
+      await visit('/inventory');
+
+      assert.equal(currentURL(), '/inventory', 'Navigated to /inventory');
+      assert.equal(jqueryLength('button:contains(Delete)'), 0, 'User doesn\'t see Delete button');
+    });
+  });
+
+  test('Receiving inventory', function(assert) {
+    return runWithPouchDump('inventory', async function() {
+      await authenticateUser();
+      await visit('/inventory/batch/new');
+      assert.equal(currentURL(), '/inventory/batch/new');
+
+      await typeAheadFillIn('.test-vendor', 'Alpha Pharmacy');
+      await fillIn('.test-invoice-number input', 'P2345');
+      await typeAheadFillIn('.test-inv-item', 'Biogesic - m00001');
+      await fillIn('.test-inv-quantity input', 500);
+      await fillIn('.test-inv-cost input', '2000');
+      await waitToAppear('.inventory-distribution-unit');
+      await click(jquerySelect('button:contains(Save)'));
+      await waitToAppear('.modal-title');
+
+      assert.dom('.modal-title').hasText('Inventory Purchases Saved', 'Inventory has been received');
+
+      await click(jquerySelect('button:contains(Ok)'));
+
+      await waitUntil(() => currentURL() === '/inventory/listing');
+      assert.equal(currentURL(), '/inventory/listing');
+    });
+  });
+
+  test('Searching inventory', function(assert) {
+    return runWithPouchDump('inventory', async function() {
+      await authenticateUser();
+      await visit('/inventory');
+
+      await fillIn('[role="search"] div input', 'Biogesic');
+      await click('.glyphicon-search');
+      assert.equal(currentURL(), '/inventory/search/Biogesic', 'Searched for Biogesic');
+      assert.equal(jqueryLength('button:contains(Delete)'), 1, 'There is one search item');
+
+      await fillIn('[role="search"] div input', 'biogesic');
+      await click('.glyphicon-search');
+      assert.equal(currentURL(), '/inventory/search/biogesic', 'Searched with all lower case ');
+      assert.equal(jqueryLength('button:contains(Delete)'), 1, 'There is one search item');
+
+      await fillIn('[role="search"] div input', 'ItemNotFound');
+      await click('.glyphicon-search');
+      assert.equal(currentURL(), '/inventory/search/ItemNotFound', 'Searched for ItemNotFound');
+      assert.equal(jqueryLength('button:contains(Delete)'), 0, 'There is no search result');
+    });
+  });
+
+  let startAndEndDateReportTypes = [
+    'Days Supply Left In Stock',
+    'Detailed Adjustment',
+    'Detailed Purchase',
+    'Detailed Stock Usage',
+    'Detailed Stock Transfer',
+    'Detailed Expenses',
+    'Expiration Date',
+    'Summary Expenses',
+    'Summary Purchase',
+    'Summary Stock Usage',
+    'Summary Stock Transfer',
+    'Finance Summary'
+  ];
+
+  let singleDateReportTypes = [
+    'Inventory By Location',
+    'Inventory Valuation'
+  ];
+
+  startAndEndDateReportTypes.forEach((reportName) => {
+    testSimpleReportForm(reportName);
+    testReportWithEmptyEndDate(reportName);
+    testReportWithEmptyEndDateBeforeStartDate(reportName);
+  });
+
+  singleDateReportTypes.forEach((reportName) => {
+    testSingleDateReportForm(reportName);
+  });
+
+  function testSimpleReportForm(reportName) {
+    test(`${reportName} report can be generated`, function(assert) {
+      return runWithPouchDump('default', async function() {
+        await authenticateUser();
+        await visit('/inventory/reports');
+        assert.equal(currentURL(), '/inventory/reports');
+
+        let startDate = moment('2015-10-01');
+        let endDate = moment('2015-10-31');
+        await selectDate('.test-start-date input', startDate.toDate());
+        await selectDate('.test-end-date input', endDate.toDate());
+        await select('#report-type', `${reportName}`);
+        await click(jquerySelect('button:contains(Generate Report)'));
+        await waitToAppear('.panel-title');
+        let reportTitle = `${reportName} Report ${startDate.format('l')} - ${endDate.format('l')}`;
+        assert.dom('.panel-title').hasText(reportTitle, `${reportName} Report generated`);
+        let exportLink = findWithAssert(jquerySelect('a:contains(Export Report)'));
+        assert.equal($(exportLink).attr('download'), `${reportTitle}.csv`);
+      });
+    });
+  }
+
+  async function generateReport(reportName, startDate, endDate) {
+    await authenticateUser();
+    await visit('/inventory/reports');
+
+    if (startDate) {
+      await selectDate('.test-start-date input', moment(startDate).toDate());
+    }
+
+    if (endDate) {
+      await selectDate('.test-end-date input', moment(endDate).toDate());
+    }
+
+    await select('#report-type', `${reportName}`);
+    await click(jquerySelect('button:contains(Generate Report)'));
+  }
+
+  function testReportWithEmptyEndDateBeforeStartDate(reportName) {
+    test(`${reportName} report with end date before start date should display an error`, (assert) => {
+      return runWithPouchDump('default', async function() {
+        let endDate = '12/10/2016';
+        let startDate = '12/11/2016';
+        await generateReport(reportName, startDate, endDate);
+        await waitToAppear('.modal-dialog');
+        assert.dom('.modal-title').hasText('Error Generating Report', 'Error Generating Report');
+        assert.dom('.modal-body').hasText('Please enter an end date after the start date.');
+      });
+    });
+  }
+
+  function testReportWithEmptyEndDate(reportName) {
+    test(`${reportName} report can be generated with empty end date`, function(assert) {
+      return runWithPouchDump('default', async function() {
+
+        let startDate = '12/11/2016';
+        let endDate = new Date();
+        await generateReport(reportName, startDate, null);
+        await waitToAppear('.panel-title');
+        assert.equal(currentURL(), '/inventory/reports');
+        let reportTitle = `${reportName} Report ${moment(startDate).format('l')} - ${moment(endDate).format('l')}`;
+        assert.dom('.panel-title').hasText(reportTitle, `${reportName} Report generated`);
+        let exportLink = findWithAssert(jquerySelect('a:contains(Export Report)'));
+        assert.equal($(exportLink).attr('download'), `${reportTitle}.csv`);
+      });
+    });
+  }
+
+  function testSingleDateReportForm(reportName) {
+    test(`${reportName} report can be generated`, function(assert) {
+      return runWithPouchDump('default', async function() {
+        let startDate = new Date();
+        await generateReport(reportName, null, null);
+        await waitToAppear('.panel-title');
+        assert.equal(currentURL(), '/inventory/reports');
+        let reportTitle = `${reportName} Report ${moment(startDate).format('l')}`;
+        assert.dom('.panel-title').hasText(reportTitle, `${reportName} Report generated`);
+        let exportLink = findWithAssert(jquerySelect('a:contains(Export Report)'));
+        assert.equal($(exportLink).attr('download'), `${reportTitle}.csv`);
+      });
+    });
   }
 });
-
-test('visiting /inventory', function(assert) {
-  runWithPouchDump('default', function() {
-    authenticateUser();
-    visit('/inventory');
-
-    andThen(function() {
-      assert.equal(currentURL(), '/inventory');
-      findWithAssert('button:contains(new request)');
-      findWithAssert('button:contains(+ Inventory Received)');
-      findWithAssert('p:contains(No requests found. )');
-      findWithAssert('a:contains(Create a new request?)');
-    });
-  });
-});
-
-test('Adding a new inventory item', (assert) => {
-  runWithPouchDump('default', function() {
-    authenticateUser();
-    visit('/inventory/edit/new');
-
-    andThen(() => {
-      assert.equal(currentURL(), '/inventory/edit/new');
-    });
-    fillIn('.test-inv-name input', 'Biogesic');
-    select('.test-inv-rank', 'B');
-    fillIn('textarea', 'Biogesic nga medisina');
-    select('.test-inv-type', 'Medication');
-    fillIn('.test-inv-cross input', '2600');
-    fillIn('.test-inv-reorder input', '100');
-    fillIn('.test-inv-price input', '5');
-    select('.test-inv-dist-unit', 'tablet');
-    fillIn('.test-inv-quantity input', '1000');
-    fillIn('.test-inv-cost input', '4000');
-    select('.test-inv-unit', 'tablet');
-    typeAheadFillIn('.test-vendor', 'Alpha Pharmacy');
-    click('button:contains(Add)');
-    waitToAppear('.modal-dialog');
-
-    andThen(() => {
-      assert.equal(find('.modal-title').text(), 'Inventory Item Saved', 'Inventory Item was saved successfully');
-    });
-    click('button:contains(Ok)');
-
-    andThen(() => {
-      findWithAssert('button:contains(Add Purchase)');
-      findWithAssert('button:contains(Update)');
-      findWithAssert('button:contains(Return)');
-    });
-
-    click('button:contains(Return)');
-    andThen(() => {
-      assert.equal(currentURL(), '/inventory/listing');
-      assert.equal(find('tr').length, 2, 'One item is listed');
-    });
-  });
-});
-
-test('Items with negative quantites should not be saved', (assert) => {
-  runWithPouchDump('default', function() {
-    authenticateUser();
-    visit('/inventory/edit/new');
-
-    andThen(() => {
-      assert.equal(currentURL(), '/inventory/edit/new');
-    });
-    fillIn('.test-inv-name input', 'Biogesic');
-    select('.test-inv-rank', 'B');
-    fillIn('textarea', 'Biogesic nga medisina');
-    select('.test-inv-type', 'Medication');
-    fillIn('.test-inv-cross input', '2600');
-    fillIn('.test-inv-reorder input', '100');
-    fillIn('.test-inv-price input', '5');
-    select('.test-inv-dist-unit', 'tablet');
-    fillIn('.test-inv-quantity input', '-1000');
-    fillIn('.test-inv-cost input', '4000');
-    select('.test-inv-unit', 'tablet');
-    typeAheadFillIn('.test-vendor', 'Alpha Pharmacy');
-    click('button:contains(Add)');
-    waitToAppear('.modal-dialog');
-
-    andThen(() => {
-      assert.equal(find('.modal-title').text(), 'Warning!!!!', 'Inventory Item with negative quantity should not be saved.');
-    });
-    click('button:contains(Ok)');
-
-    andThen(() => {
-      assert.equal(currentURL(), '/inventory/edit/new');
-      findWithAssert('button:contains(Add)');
-      findWithAssert('button:contains(Cancel)');
-      assert.equal(find('.test-inv-quantity .help-block').text(), 'not a valid number', 'Error message should be present for invalid quantities');
-    });
-  });
-});
-
-test('Visiting /inventory/barcode', (assert) => {
-  runWithPouchDump('inventory', function() {
-    authenticateUser();
-    visit('/inventory/listing');
-
-    andThen(() => {
-      assert.equal(currentURL(), '/inventory/listing');
-      click('a:contains(Barcode)');
-      andThen(() => {
-        assert.equal(currentURL(), '/inventory/barcode/igbmk5zf_is');
-        findWithAssert('.panel-body img[src^="data:image"]');
-      });
-    });
-  });
-});
-
-test('Deleting the last inventory item', (assert) => {
-  runWithPouchDump('inventory', function() {
-    authenticateUser();
-    visit('/inventory/listing');
-
-    andThen(function() {
-      assert.equal(currentURL(), '/inventory/listing');
-      click('button:contains(Delete)');
-      waitToAppear('.modal-dialog');
-      andThen(() => {
-        assert.equal(find('.modal-title').text(), 'Delete Item', 'Deleting confirmation.');
-      });
-      click('.modal-content button:contains(Delete)');
-      waitToAppear('.panel-body .alert-info');
-      andThen(function() {
-        assert.equal(currentURL(), '/inventory/listing');
-        findWithAssert('a:contains(Create a new record?)');
-      });
-    });
-  });
-});
-
-test('Creating a new inventory request', function(assert) {
-  runWithPouchDump('inventory', function() {
-    authenticateUser();
-    visit('/inventory/request/new');
-
-    andThen(function() {
-      assert.equal(currentURL(), '/inventory/request/new');
-    });
-    typeAheadFillIn('.test-inv-item', 'Biogesic - m00001 (1000 available)');
-    fillIn('.test-inv-quantity input', 500);
-    typeAheadFillIn('.test-delivery-location', 'Harare');
-    typeAheadFillIn('.test-delivery-aisle', 'C100');
-    typeAheadFillIn('.test-bill-to', 'Accounts Dept');
-    click('button:contains(Add)');
-    waitToAppear('.modal-dialog');
-
-    andThen(() => {
-      assert.equal(find('.modal-title').text(), 'Request Updated', 'New request has been saved');
-    });
-    click('button:contains(Ok)');
-    andThen(() => {
-      findWithAssert('button:contains(Fulfill)');
-      findWithAssert('button:contains(Cancel)');
-    });
-    click('button:contains(Cancel)');
-    andThen(() => {
-      assert.equal(currentURL(), '/inventory');
-      assert.equal(find('tr').length, 3, 'Two requests are now displayed');
-    });
-  });
-});
-
-test('Fulfilling an inventory request', function(assert) {
-  runWithPouchDump('inventory', function() {
-    authenticateUser();
-    visit('/inventory');
-
-    andThen(function() {
-      assert.equal(currentURL(), '/inventory');
-      let tableRows = find('tr').length;
-      assert.equal(tableRows, 2, 'One request not fulfilled');
-    });
-    click('button:contains(Fulfill)');
-
-    andThen(() => {
-      findWithAssert('button:contains(Fulfill)');
-      findWithAssert('button:contains(Cancel)');
-    });
-    waitToAppear('.inventory-location option:contains(No Location)');
-    andThen(() => {
-      click('button:contains(Fulfill)');
-      waitToAppear('.modal-dialog');
-    });
-    andThen(() => {
-      let modalTitle = find('.modal-title');
-      assert.equal(modalTitle.text(), 'Request Fulfilled', 'Inventory request has been fulfilled');
-    });
-
-    click('button:contains(Ok)');
-    andThen(() => {
-      assert.equal(currentURL(), '/inventory');
-    });
-  });
-});
-
-test('Deleting an inventory request', function(assert) {
-  runWithPouchDump('inventory', function() {
-    authenticateUser();
-    visit('/inventory');
-
-    andThen(() => {
-      assert.equal(currentURL(), '/inventory', 'Navigated to /inventory');
-      assert.equal(find('button:contains(Delete)').length, 1, 'There is one request');
-    });
-
-    click('button:contains(Delete)');
-    waitToAppear('.modal-dialog');
-
-    andThen(() => {
-      assert.equal(find('.modal-title').text(), 'Delete Item', 'Deleting confirmation');
-    });
-
-    click('.modal-content button:contains(Delete)');
-    waitToAppear('.panel-body .alert-info');
-
-    andThen(function() {
-      assert.equal(currentURL(), '/inventory', 'Navigated to /inventory');
-      assert.equal(find('button:contains(Delete)').length, 0, 'Request was deleted');
-    });
-  });
-});
-
-test('User with add_inventory_request and without fulfill_inventory rights should not be able to delete others\' requests', function(assert) {
-  runWithPouchDump('inventory', function() {
-    authenticateUser({
-      name: 'nurse.mgr',
-      roles: ['Nurse Manager', 'user'],
-      role: 'Nurse Manager'
-    });
-    visit('/inventory');
-
-    andThen(() => {
-      assert.equal(currentURL(), '/inventory', 'Navigated to /inventory');
-      assert.equal(find('button:contains(Delete)').length, 0, 'User doesn\'t see Delete button');
-    });
-  });
-});
-
-test('Receiving inventory', function(assert) {
-  runWithPouchDump('inventory', function() {
-    authenticateUser();
-    visit('/inventory/batch/new');
-
-    andThen(function() {
-      assert.equal(currentURL(), '/inventory/batch/new');
-    });
-    typeAheadFillIn('.test-vendor', 'Alpha Pharmacy');
-    fillIn('.test-invoice-number input', 'P2345');
-    typeAheadFillIn('.test-inv-item', 'Biogesic - m00001');
-    fillIn('.test-inv-quantity input', 500);
-    fillIn('.test-inv-cost input', '2000');
-    waitToAppear('.inventory-distribution-unit');
-    andThen(() => {
-      click('button:contains(Save)');
-      waitToAppear('.modal-title');
-    });
-    andThen(() => {
-      let modalTitle = find('.modal-title');
-      assert.equal(modalTitle.text(), 'Inventory Purchases Saved', 'Inventory has been received');
-    });
-    click('button:contains(Ok)');
-
-    andThen(() => {
-      assert.equal(currentURL(), '/inventory/listing');
-    });
-  });
-});
-
-test('Searching inventory', function(assert) {
-  runWithPouchDump('inventory', function() {
-    authenticateUser();
-    visit('/inventory');
-
-    fillIn('[role="search"] div input', 'Biogesic');
-    click('.glyphicon-search');
-    andThen(() => {
-      assert.equal(currentURL(), '/inventory/search/Biogesic', 'Searched for Biogesic');
-      assert.equal(find('button:contains(Delete)').length, 1, 'There is one search item');
-    });
-
-    fillIn('[role="search"] div input', 'biogesic');
-    click('.glyphicon-search');
-    andThen(() => {
-      assert.equal(currentURL(), '/inventory/search/biogesic', 'Searched with all lower case ');
-      assert.equal(find('button:contains(Delete)').length, 1, 'There is one search item');
-    });
-
-    fillIn('[role="search"] div input', 'ItemNotFound');
-    click('.glyphicon-search');
-    andThen(() => {
-      assert.equal(currentURL(), '/inventory/search/ItemNotFound', 'Searched for ItemNotFound');
-      assert.equal(find('button:contains(Delete)').length, 0, 'There is no search result');
-    });
-  });
-});
-
-testSimpleReportForm('Detailed Adjustment');
-testSimpleReportForm('Detailed Purchase');
-testSimpleReportForm('Detailed Stock Usage');
-testSimpleReportForm('Detailed Stock Transfer');
-testSimpleReportForm('Detailed Expenses');
-testSimpleReportForm('Expiration Date');
-testSimpleReportForm('Summary Expenses');
-testSimpleReportForm('Summary Purchase');
-testSimpleReportForm('Summary Stock Usage');
-testSimpleReportForm('Summary Stock Transfer');
-testSimpleReportForm('Finance Summary');
-testSingleDateReportForm('Inventory By Location');
-testSingleDateReportForm('Inventory Valuation');
-
-function testSimpleReportForm(reportName) {
-  test(`${reportName} report can be generated`, function(assert) {
-    runWithPouchDump('default', function() {
-      authenticateUser();
-      visit('/inventory/reports');
-      andThen(function() {
-        assert.equal(currentURL(), '/inventory/reports');
-      });
-      let startDate = moment('2015-10-01');
-      let endDate = moment('2015-10-31');
-      selectDate('.test-start-date input', startDate.toDate());
-      selectDate('.test-end-date input', endDate.toDate());
-      select('#report-type', `${reportName}`);
-      click('button:contains(Generate Report)');
-      waitToAppear('.panel-title');
-
-      andThen(() => {
-        let reportTitle = `${reportName} Report ${startDate.format('l')} - ${endDate.format('l')}`;
-        assert.equal(find('.panel-title').text().trim(), reportTitle, `${reportName} Report generated`);
-        let exportLink = findWithAssert('a:contains(Export Report)');
-        assert.equal($(exportLink).attr('download'), `${reportTitle}.csv`);
-      });
-    });
-  });
-}
-
-function testSingleDateReportForm(reportName) {
-  test(`${reportName} report can be generated`, function(assert) {
-    runWithPouchDump('default', function() {
-      authenticateUser();
-      visit('/inventory/reports');
-      andThen(function() {
-        assert.equal(currentURL(), '/inventory/reports');
-      });
-      select('#report-type', `${reportName}`);
-      click('button:contains(Generate Report)');
-      waitToAppear('.panel-title');
-
-      andThen(() => {
-        let reportTitle = `${reportName} Report ${moment().format('l')}`;
-        assert.equal(find('.panel-title').text().trim(), reportTitle, `${reportName} Report generated`);
-        let exportLink = findWithAssert('a:contains(Export Report)');
-        assert.equal($(exportLink).attr('download'), `${reportTitle}.csv`);
-      });
-    });
-  });
-}

@@ -2,17 +2,19 @@ import AbstractModuleRoute from 'hospitalrun/routes/abstract-module-route';
 import FulfillRequest from 'hospitalrun/mixins/fulfill-request';
 import InventoryId from 'hospitalrun/mixins/inventory-id';
 import InventoryLocations from 'hospitalrun/mixins/inventory-locations'; // inventory-locations mixin is needed for fulfill-request mixin!
+import { computed } from '@ember/object';
+
 export default AbstractModuleRoute.extend(FulfillRequest, InventoryId, InventoryLocations, {
   addCapability: 'add_inventory_item',
-  additionalButtons: function() {
+  additionalButtons: computed(function() {
     if (this.currentUserCan(this.get('addCapability'))) {
       return [{
         buttonAction: 'newInventoryBatch',
-        buttonText: this.get('i18n').t('navigation.subnav.inventoryReceivedPlus'),
+        buttonText: this.get('intl').t('navigation.subnav.inventoryReceivedPlus'),
         class: 'btn btn-primary'
       }];
     }
-  }.property(),
+  }),
 
   additionalModels: [{
     name: 'aisleLocationList',

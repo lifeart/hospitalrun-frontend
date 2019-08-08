@@ -1,9 +1,11 @@
-import Ember from 'ember';
+import { map } from '@ember/object/computed';
+import { computed } from '@ember/object';
+import Controller, { inject as controller } from '@ember/controller';
 import IsUpdateDisabled from 'hospitalrun/mixins/is-update-disabled';
 import SelectValues from 'hospitalrun/utils/select-values';
 
-export default Ember.Controller.extend(IsUpdateDisabled, {
-  pricingController: Ember.inject.controller('pricing'),
+export default Controller.extend(IsUpdateDisabled, {
+  pricingController: controller('pricing'),
 
   actions: {
     cancel() {
@@ -24,26 +26,27 @@ export default Ember.Controller.extend(IsUpdateDisabled, {
     }
   },
 
-  editController: Ember.inject.controller('pricing/edit'),
-  pricingProfiles: Ember.computed.map('pricingController.pricingProfiles', SelectValues.selectObjectMap),
+  editController: controller('pricing/edit'),
+  pricingProfiles: map('pricingController.pricingProfiles', SelectValues.selectObjectMap),
   showUpdateButton: true,
 
-  title: function() {
+  title: computed('model.isNew', function() {
     if (this.get('model.isNew')) {
       return 'Add Override';
     } else {
       return 'Edit Override';
     }
-  }.property('model.isNew'),
+  }),
 
   updateButtonAction: 'update',
-  updateButtonText: function() {
+
+  updateButtonText: computed('model.isNew', function() {
     let isNew = this.get('model.isNew');
     if (isNew) {
       return 'Add';
     } else {
       return 'Update';
     }
-  }.property('model.isNew')
+  })
 
 });

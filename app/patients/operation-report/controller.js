@@ -1,10 +1,6 @@
-import Ember from 'ember';
+import { alias } from '@ember/object/computed';
+import { get } from '@ember/object';
 import OperativePlanController from 'hospitalrun/patients/operative-plan/controller';
-
-const {
-  computed: { alias },
-  get
-} = Ember;
 
 export default OperativePlanController.extend({
   additionalButtons: null,
@@ -26,9 +22,9 @@ export default OperativePlanController.extend({
   diagnosisList: alias('patientController.diagnosisList'),
 
   _finishAfterUpdate() {
-    let i18n = get(this, 'i18n');
-    let updateMessage = i18n.t('operationReport.messages.reportSaved');
-    let updateTitle = i18n.t('operationReport.titles.reportSaved');
+    let intl = get(this, 'intl');
+    let updateMessage = intl.t('operationReport.messages.reportSaved');
+    let updateTitle = intl.t('operationReport.titles.reportSaved');
     this.displayAlert(updateTitle, updateMessage);
   },
 

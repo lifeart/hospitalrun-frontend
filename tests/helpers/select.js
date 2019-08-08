@@ -1,18 +1,21 @@
-import Ember from 'ember';
+import { run } from '@ember/runloop';
+import { settled as wait } from '@ember/test-helpers';
+import { findAll, findWithAssert } from 'ember-native-dom-helpers';
 
-Ember.Test.registerAsyncHelper('select', function(app, selector, ...texts) {
-  let $options = app.testHelpers.findWithAssert(`${selector} option`);
+async function select(selector, ...texts) {
+  findWithAssert(`${selector}`);
+  let options = Array.from(findAll(`${selector} option`));
 
-  $options.each(function() {
-    let $option = Ember.$(this);
-
-    Ember.run(() => {
-      this.selected = texts.some((text) => $option.is(`:contains('${text}')`));
-      if (this.selected) {
-        $option.trigger('change');
+  options.forEach(function(option) {
+    run(() => {
+      if (texts.some((text) => option.textContent.includes(text))) {
+        option.selected = true;
+        option.parentNode.dispatchEvent(new Event('change'));
       }
     });
   });
 
-  return app.testHelpers.wait();
-});
+  return wait();
+}
+
+export default select;

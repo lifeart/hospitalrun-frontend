@@ -1,7 +1,16 @@
-import Ember from 'ember';
-import { module, test } from 'qunit';
+import { click, fillIn, currentURL, find, visit, waitUntil } from '@ember/test-helpers';
+import { findWithAssert } from 'ember-native-dom-helpers';
+import jquerySelect from 'hospitalrun/tests/helpers/deprecated-jquery-select';
+import jqueryLength from 'hospitalrun/tests/helpers/deprecated-jquery-length';
 import moment from 'moment';
-import startApp from 'hospitalrun/tests/helpers/start-app';
+import { module, test } from 'qunit';
+import { setupApplicationTest } from 'ember-qunit';
+import runWithPouchDump from 'hospitalrun/tests/helpers/run-with-pouch-dump';
+import select from 'hospitalrun/tests/helpers/select';
+import typeAheadFillIn from 'hospitalrun/tests/helpers/typeahead-fillin';
+import { waitToAppear, waitToDisappear } from 'hospitalrun/tests/helpers/wait-to-appear';
+import { authenticateUser } from 'hospitalrun/tests/helpers/authenticate-user';
+import selectDate from 'hospitalrun/tests/helpers/select-date';
 
 const DATE_FORMAT = 'l';
 const DATE_TIME_FORMAT = 'l h:mm A';
@@ -13,283 +22,306 @@ const INCIDENT_NOTES = 'Additional Notes here';
 const EDIT_INCIDENT_NOTE = 'The wet floor sign had fallen down and was no longer visible.';
 const REPORTED_TO = 'Jack Bridges';
 
-module('Acceptance | Incidents', {
-  beforeEach() {
-    this.application = startApp();
-  },
+module('Acceptance | Incidents', function(hooks) {
+  setupApplicationTest(hooks);
 
-  afterEach() {
-    Ember.run(this.application, 'destroy');
-  }
-});
-
-test('Incident category management', function(assert) {
-  runWithPouchDump('incident', function() {
-    authenticateUser();
-    visit('/admin/inc-category');
-    andThen(() => {
+  test('Incident category management', function(assert) {
+    return runWithPouchDump('incident', async function() {
+      await authenticateUser();
+      await visit('/admin/inc-category');
       assert.equal(currentURL(), '/admin/inc-category', 'Incident Categories url is correct');
-      click('button:contains(+ new category)');
-    });
-    andThen(() => {
+
+      await click(jquerySelect('button:contains(+ new category)'));
       assert.equal(currentURL(), '/admin/inc-category/edit/new', 'New incident category URL is correct');
-      fillIn('.incident-category-name input', 'Infection Control');
-      addItem(assert, 'Surgical Site Infection');
-    });
-    andThen(() => {
-      addItem(assert, 'Hospital Acquired Infection');
-    });
-    andThen(() => {
-      click('button:contains(Delete)');
-      waitToAppear('.modal-dialog');
-    });
-    andThen(() => {
-      assert.equal(find('.modal-title').text(), 'Delete Item', 'Delete Item modal appears');
-      click('.modal-footer button:contains(Ok)');
-      waitToDisappear('.modal-dialog');
-    });
-    andThen(() => {
-      assert.equal(find('.incident-category-item:contains(Surgical Site Infection)').length,
-                 0, 'Deleted incident category item disappears');
-      click('.panel-footer button:contains(Update)');
-      waitToAppear('.modal-dialog');
-    });
-    andThen(() => {
-      assert.equal(find('.modal-title').text(), 'Incident Category Saved',
-                   'Incident Category saved modal appears');
-      click('button:contains(Return)');
-    });
-    andThen(() => {
+
+      await fillIn('.incident-category-name input', 'Infection Control');
+      await addItem(assert, 'Surgical Site Infection');
+      await addItem(assert, 'Hospital Acquired Infection');
+
+      await click(jquerySelect('button:contains(Delete):first'));
+      await waitToAppear('.modal-dialog');
+      assert.dom('.modal-title').hasText('Delete Item', 'Delete Item modal appears');
+
+      await click(jquerySelect('.modal-footer button:contains(Ok)'));
+      await waitToDisappear('.modal-dialog');
+      assert.equal(jqueryLength('.incident-category-item:contains(Surgical Site Infection)'),
+        0, 'Deleted incident category item disappears');
+      await click(jquerySelect('.panel-footer button:contains(Update)'));
+      await waitToAppear('.modal-dialog');
+      assert.dom('.modal-title').hasText('Incident Category Saved', 'Incident Category saved modal appears');
+      await click(jquerySelect('button:contains(Return)'));
+
+      await waitUntil(() => currentURL() === '/admin/inc-category');
+
       assert.equal(currentURL(), '/admin/inc-category', 'Incident Categories url is correct');
-      assert.equal(find('td.incident-catergory-name:contains(Infection Control)').length,
-                   1, 'New incident category displays in listing');
+      assert.equal(jqueryLength('td.incident-catergory-name:contains(Infection Control)'),
+        1, 'New incident category displays in listing');
     });
   });
-});
 
-test('Incident creation and editing', function(assert) {
-  runWithPouchDump('incident', function() {
-    let now = moment();
-    authenticateUser();
-    visit('/incident');
-    andThen(() => {
+  test('Incident creation and editing', function(assert) {
+    return runWithPouchDump('incident', async function() {
+      let now = moment();
+      await authenticateUser();
+      await visit('/incident');
       assert.equal(currentURL(), '/incident', 'Incident listing url is correct');
-      click('button:contains(+ new incident)');
-    });
-    andThen(() => {
+
+      await click(jquerySelect('button:contains(+ new incident)'));
+
+      await waitUntil(() => currentURL() === '/incident/edit/new');
       assert.equal(currentURL(), '/incident/edit/new', 'Incident edit url is correct');
-      click('.sentinel-event input');
-      fillIn('.incident-date input', now.format(DATE_TIME_FORMAT));
-      typeAheadFillIn('.incident-department', DEPARTMENT);
-      fillIn('.reported-to', REPORTED_TO);
-      select('.incident-category', INCIDENT_CATEGORY);
-      waitToAppear(`.incident-category-item option:contains(${INCIDENT_CATEGORY_ITEM})`);
-    });
-    andThen(() => {
-      select('.incident-category-item', INCIDENT_CATEGORY_ITEM);
-      typeAheadFillIn('.patient-name', 'Joe Bagadonuts - P00001');
-      waitToAppear('.patient-id:contains(P00001)');
-    });
-    andThen(() => {
-      assert.equal(find('.patient-id').text(), 'P00001', 'Selected patient id appears');
-      fillIn('.incident-description textarea', 'Patient blacked out and fell down.');
-    });
-    andThen(() => {
-      click('.panel-footer button:contains(Add)');
-      waitToAppear('.modal-dialog');
-    });
-    andThen(() => {
-      assert.equal(find('.modal-title').text(), 'Incident Saved', ' Incident Saved modal appears');
-      click('.modal-footer button:contains(Ok)');
-    });
-    andThen(() => {
-      assert.equal(find('.tab-nav li a:contains(Notes)').length, 1, 'Notes tab appears');
-      assert.equal(find('.tab-nav li a:contains(Attachment)').length, 1, 'Attachment tab appears');
-      assert.equal(find('.tab-nav li a:contains(Harm Score)').length, 1, 'Harm Score custom form tab appears');
-      assert.equal(find('.tab-nav li a:contains(+ Add Form)').length, 1, 'Add Custom form tab appears');
-      click('button:contains(+ New Note)');
-      waitToAppear('.modal-dialog');
-    });
-    andThen(() => {
-      fillIn('.note-description textarea', INCIDENT_NOTES);
-      click('.modal-footer button:contains(Add)');
-    });
-    andThen(() => {
-      waitToDisappear('.modal-dialog');
-      waitToAppear(`.note-description:contains(${INCIDENT_NOTES})`);
-    });
-    andThen(() => {
-      assert.equal(find(`.note-description:contains(${INCIDENT_NOTES})`).length, 1, 'Added note appears in listing');
-      click('.tab-nav li a:contains(Attachment)');
-    });
-    andThen(() => {
-      click('button:contains(+ New Attachment)');
-      waitToAppear('.modal-dialog');
-    });
-    andThen(() => {
-      assert.equal(find('.modal-title').text(), 'Add Attachment', 'Add attachment dialog appears');
+
+      await click('.sentinel-event input');
+      await fillIn('.incident-date input', now.format(DATE_TIME_FORMAT));
+      await typeAheadFillIn('.incident-department', DEPARTMENT);
+      await fillIn('.reported-to input', REPORTED_TO);
+      await fillIn('.incident-category select', INCIDENT_CATEGORY);
+      await waitToAppear(`.incident-category-item option:contains(${INCIDENT_CATEGORY_ITEM})`);
+      await select('.incident-category-item', INCIDENT_CATEGORY_ITEM);
+      await typeAheadFillIn('.patient-name', 'Joe Bagadonuts - P00001');
+      await waitToAppear('.patient-id:contains(P00001)');
+      assert.dom('.patient-id').hasText('P00001', 'Selected patient id appears');
+
+      await fillIn('.incident-description textarea', 'Patient blacked out and fell down.');
+      await click(jquerySelect('.panel-footer button:contains(Add)'));
+      await waitToAppear('.modal-dialog');
+      assert.dom('.modal-title').hasText('Incident Saved', ' Incident Saved modal appears');
+
+      await click(jquerySelect('.modal-footer button:contains(Ok)'));
+      assert.equal(jqueryLength('.tab-nav li a:contains(Notes)'), 1, 'Notes tab appears');
+      assert.equal(jqueryLength('.tab-nav li a:contains(Attachment)'), 1, 'Attachment tab appears');
+      assert.equal(jqueryLength('.tab-nav li a:contains(Harm Score)'), 1, 'Harm Score custom form tab appears');
+      assert.equal(jqueryLength('.tab-nav li a:contains(+ Add Form)'), 1, 'Add Custom form tab appears');
+
+      await click(jquerySelect('button:contains(+ New Note)'));
+      await waitToAppear('.modal-dialog');
+      await fillIn('.note-description textarea', INCIDENT_NOTES);
+      await click(jquerySelect('.modal-footer button:contains(Add)'));
+      await waitToDisappear('.modal-dialog');
+      await waitToAppear(jquerySelect(`.note-description:contains(${INCIDENT_NOTES})`));
+      assert.equal(jqueryLength(`.note-description:contains(${INCIDENT_NOTES})`), 1, 'Added note appears in listing');
+
+      await click(jquerySelect('.tab-nav li a:contains(Attachment)'));
+      await click(jquerySelect('button:contains(+ New Attachment)'));
+      await waitToAppear('.modal-dialog');
+      assert.dom('.modal-title').hasText('Add Attachment', 'Add attachment dialog appears');
+
       // Right now we don't have a good way to test adding attachments.
-      click('.modal-footer button:contains(Cancel)');
-      waitToDisappear('.modal-dialog');
-    });
-    andThen(() => {
-      click('.tab-nav li a:contains(Harm Score)');
-    });
-    andThen(() => {
-      assert.equal(find('#customForm0 label:contains(No Actual Event)').length, 1, 'Always add custom form renders');
-      click('.tab-nav li a:contains(+ Add Form)');
-      waitToAppear('.modal-dialog');
-    });
-    andThen(() => {
-      assert.equal(find('.modal-title').text(), 'Add Custom Form', 'Add custom form dialog appears');
-      select('.form-to-add', 'Incident');
-    });
-    andThen(() => {
-      click('.modal-footer button:contains(Add Form)');
-      waitToDisappear('.modal-dialog');
-    });
-    andThen(() => {
-      assert.equal(find('.tab-nav li a:contains(Pre-Incident Risk Assessment)').length, 1, 'Pre-Incident Risk Assessment form tab now appears');
-      assert.equal(find('.tab-nav li a:contains(+ Add Form)').length, 0, 'Add Custom form tab disappears');
-      click('.tab-nav li a:contains(Pre-Incident Risk Assessment)');
-    });
-    andThen(() => {
-      assert.equal(find('#customForm1 label:contains(Minimum No injuries, low financial loss)').length, 1, 'Pre-Incident Risk Assessment custom form renders');
-      click('.panel-footer button:contains(Update)');
-      waitToAppear('.modal-dialog');
-    });
-    andThen(() => {
-      assert.equal(find('.modal-title').text(), 'Incident Saved', ' Incident Saved modal appears');
-      click('.modal-footer button:contains(Ok)');
-      waitToDisappear('.modal-dialog');
-    });
-    andThen(() => {
-      click('.panel-footer button:contains(Return)');
-    });
-    andThen(() => {
+      await click(jquerySelect('.modal-footer button:contains(Cancel)'));
+      await waitToDisappear('.modal-dialog');
+      await click(jquerySelect('.tab-nav li a:contains(Harm Score)'));
+      assert.equal(jqueryLength('#customForm0 label:contains(No Actual Event)'), 1, 'Always add custom form renders');
+
+      await click(jquerySelect('.tab-nav li a:contains(+ Add Form)'));
+      await waitToAppear('.modal-dialog');
+      assert.dom('.modal-title').hasText('Add Custom Form', 'Add custom form dialog appears');
+
+      await select('.form-to-add', 'Incident');
+      await click(jquerySelect('.modal-footer button:contains(Add Form)'));
+      await waitToDisappear('.modal-dialog');
+      assert.equal(jqueryLength('.tab-nav li a:contains(Pre-Incident Risk Assessment)'), 1, 'Pre-Incident Risk Assessment form tab now appears');
+      assert.equal(jqueryLength('.tab-nav li a:contains(+ Add Form)'), 0, 'Add Custom form tab disappears');
+
+      await click(jquerySelect('.tab-nav li a:contains(Pre-Incident Risk Assessment)'));
+      assert.equal(jqueryLength('#customForm1 label:contains(Minimum No injuries, low financial loss)'), 1, 'Pre-Incident Risk Assessment custom form renders');
+
+      await click(jquerySelect('.panel-footer button:contains(Update)'));
+      await waitToAppear('.modal-dialog');
+      assert.dom('.modal-title').hasText('Incident Saved', ' Incident Saved modal appears');
+
+      await click(jquerySelect('.modal-footer button:contains(Ok)'));
+      await waitToDisappear('.modal-dialog');
+      await click(jquerySelect('.panel-footer button:contains(Return)'));
+
+      await waitUntil(() => currentURL() === '/incident');
       assert.equal(currentURL(), '/incident', 'Incident listing url is correct');
-      assert.equal(find('.incident-row').length, 2, 'Two incidents appears');
-      assert.equal(find(`.incident-row td.incident-date:contains(${now.format(DATE_FORMAT)})`).length, 1, 'Incident date appears in listing');
-      assert.equal(find(`.incident-row td.incident-department:contains(${DEPARTMENT})`).length, 1, 'Incident department appears in listing');
-      assert.equal(find(`.incident-row td.incident-category:contains(${INCIDENT_CATEGORY})`).length, 1, 'Incident category appears in listing');
-      assert.equal(find(`.incident-row td.incident-category-item:contains(${INCIDENT_CATEGORY_ITEM})`).length, 1, 'Incident category item appears in listing');
-      assert.equal(find('.incident-row td.incident-status:last').text(), 'Reported', 'Incident status of reported appears in listing');
-      visit('/incident/edit/56c64d71-ba30-4271-b899-f6f6b031f589');
-    });
-    andThen(() => {
+      assert.equal(jqueryLength('.incident-row'), 2, 'Two incidents appears');
+      assert.equal(jqueryLength(`.incident-row td.incident-date:contains(${now.format(DATE_FORMAT)})`), 1, 'Incident date appears in listing');
+      assert.equal(jqueryLength(`.incident-row td.incident-department:contains(${DEPARTMENT})`), 1, 'Incident department appears in listing');
+      assert.equal(jqueryLength(`.incident-row td.incident-category:contains(${INCIDENT_CATEGORY})`), 1, 'Incident category appears in listing');
+      assert.equal(jqueryLength(
+        `.incident-row td.incident-category-item:contains(${INCIDENT_CATEGORY_ITEM})`
+      ), 1, 'Incident category item appears in listing');
+      assert.equal(find(jquerySelect('.incident-row td.incident-status:last')).textContent, 'Reported', 'Incident status of reported appears in listing');
+
+      await visit('/incident/edit/56c64d71-ba30-4271-b899-f6f6b031f589');
+
       let incidentDate = moment(1489004400000);
       assert.equal(currentURL(), '/incident/edit/56c64d71-ba30-4271-b899-f6f6b031f589', 'Incident edit url is correct');
-      assert.equal(find('.sentinel-event input:checked').length, 1, 'Sentinel Event checkbox is checked');
-      assert.equal(find('.incident-date input').val(), incidentDate.format(DATE_TIME_FORMAT), 'Date of incident displays');
-      assert.equal(find('.incident-department .tt-input').val(), 'Reception', 'Incident department displays');
-      assert.equal(find('.reported-to input').val(), 'Jane Bagadonuts', 'Reported to displays.');
-      assert.equal(find('.incident-category option:selected').text().trim(), 'Accident or Injury', 'Category displays');
-      assert.equal(find('.incident-category-item option:selected').text().trim(), 'Patient', 'Category item displays');
-      assert.equal(find('.patient-name .tt-input').val(), 'Joe Bagadonuts - P00001', 'Patient impacted name displays');
-      assert.equal(find('.patient-id').text(), 'P00001', 'Patient id displays');
-      assert.equal(find('.incident-description textarea').val(), 'Patient fell on wet floor.', 'Description displays');
-      fillIn('.incident-description textarea', INCIDENT_DESCRIPTION);
-    });
-    andThen(() => {
-      assert.equal(find('.incident-description textarea').val(), INCIDENT_DESCRIPTION, 'Updated description displays');
-      click('.panel-footer button:contains(Update)');
-      waitToAppear('.modal-dialog');
-    });
-    andThen(() => {
-      assert.equal(find('.modal-title').text(), 'Incident Saved', ' Incident Saved modal appears');
-      click('.modal-footer button:contains(Ok)');
-      waitToDisappear('.modal-dialog');
-    });
-    andThen(() => {
-      click('#notes tr button:contains(Edit)');
-      waitToAppear('.modal-dialog');
-    });
-    andThen(() => {
-      assert.equal(find('.modal-title').text(), 'Edit Note', ' Edit Note modal appears');
-      fillIn('.note-description textarea', EDIT_INCIDENT_NOTE);
-    });
-    andThen(() => {
-      click('.modal-footer button:contains(Update)');
-      waitToDisappear('.modal-dialog');
-    });
-    andThen(() => {
-      assert.equal(find('.note-description').text(), EDIT_INCIDENT_NOTE, 'Note is updated');
-      click('#notes tr button:contains(Delete)');
-      waitToAppear('.modal-dialog');
-    });
-    andThen(() => {
-      assert.equal(find('.modal-title').text(), 'Delete Note', ' Delete Note modal appears');
-      click('.modal-footer button:contains(Delete)');
-      waitToDisappear('.modal-dialog');
-    });
-    andThen(() => {
-      assert.equal(find('.note-description').length, 0, 'Note has been deleted');
-      click('.tab-nav li a:contains(Attachment)');
-      waitToAppear('#attachments td a:contains(Download)');
-    });
-    andThen(() => {
-      assert.equal(find('#attachments td a:contains(Download)').length, 1, 'Download button appears for attachment');
-      click('#attachments td button:contains(Edit)');
-      waitToAppear('.modal-dialog');
-    });
-    andThen(() => {
-      assert.equal(find('.modal-title').text(), 'Edit Attachment', ' Edit Attachment modal appears');
-      fillIn('.attachment-title input', 'Incident Report Form');
-    });
-    andThen(() => {
-      click('.modal-footer button:contains(Update)');
-      waitToDisappear('.modal-dialog');
-    });
-    andThen(() => {
-      assert.equal(find('#attachments td:contains(Incident Report Form)').length, 1, 'Updated attachment title appears');
-      click('#attachments td button:contains(Delete)');
-      waitToAppear('.modal-dialog');
-    });
-    andThen(() => {
-      assert.equal(find('.modal-title').text(), 'Delete Attachment', ' Delete Attachment modal appears');
-      click('.modal-footer button:contains(Ok)');
-    });
-    andThen(() => {
-      assert.equal(find('#attachments td:contains(Incident Report Form)').length, 0, 'Deleted attachment disappears');
+      assert.dom('.sentinel-event input').isChecked('Sentinel Event checkbox is checked');
+      assert.dom('.incident-date input').hasValue(incidentDate.format(DATE_TIME_FORMAT), 'Date of incident displays');
+      assert.dom('.incident-department .tt-input').hasValue('Reception', 'Incident department displays');
+      assert.dom('.reported-to input').hasValue('Jane Bagadonuts', 'Reported to displays.');
+      assert.equal(find('.incident-category option:checked').textContent.trim(), 'Accident or Injury', 'Category displays');
+      assert.equal(find('.incident-category-item option:checked').textContent.trim(), 'Patient', 'Category item displays');
+      assert.dom('.patient-name .tt-input').hasValue('Joe Bagadonuts - P00001', 'Patient impacted name displays');
+      assert.dom('.patient-id').hasText('P00001', 'Patient id displays');
+      assert.dom('.incident-description textarea').hasValue('Patient fell on wet floor.', 'Description displays');
+
+      await fillIn('.incident-description textarea', INCIDENT_DESCRIPTION);
+      assert.dom('.incident-description textarea').hasValue(INCIDENT_DESCRIPTION, 'Updated description displays');
+
+      await click(jquerySelect('.panel-footer button:contains(Update)'));
+      await waitToAppear('.modal-dialog');
+      assert.dom('.modal-title').hasText('Incident Saved', ' Incident Saved modal appears');
+
+      await click(jquerySelect('.modal-footer button:contains(Ok)'));
+      await waitToDisappear('.modal-dialog');
+      await click(jquerySelect('#notes tr button:contains(Edit)'));
+      await waitToAppear('.modal-dialog');
+      assert.dom('.modal-title').hasText('Edit Note', ' Edit Note modal appears');
+
+      await fillIn('.note-description textarea', EDIT_INCIDENT_NOTE);
+      await click(jquerySelect('.modal-footer button:contains(Update)'));
+      await waitToDisappear('.modal-dialog');
+      assert.dom('.note-description').hasText(EDIT_INCIDENT_NOTE, 'Note is updated');
+
+      await click(jquerySelect('#notes tr button:contains(Delete)'));
+      await waitToAppear('.modal-dialog');
+      assert.dom('.modal-title').hasText('Delete Note', ' Delete Note modal appears');
+
+      await click(jquerySelect('.modal-footer button:contains(Delete)'));
+      await waitToDisappear('.modal-dialog');
+      assert.dom('.note-description').doesNotExist('Note has been deleted');
+
+      await click(jquerySelect('.tab-nav li a:contains(Attachment)'));
+      await waitToAppear('#attachments td a:contains(Download)');
+      assert.equal(jqueryLength('#attachments td a:contains(Download)'), 1, 'Download button appears for attachment');
+
+      await click(jquerySelect('#attachments td button:contains(Edit)'));
+      await waitToAppear('.modal-dialog');
+      assert.dom('.modal-title').hasText('Edit Attachment', ' Edit Attachment modal appears');
+
+      await fillIn('.attachment-title input', 'Incident Report Form');
+      await click(jquerySelect('.modal-footer button:contains(Update)'));
+      await waitToDisappear('.modal-dialog');
+      assert.equal(jqueryLength('#attachments td:contains(Incident Report Form)'), 1, 'Updated attachment title appears');
+
+      await click(jquerySelect('#attachments td button:contains(Delete)'));
+      await waitToAppear('.modal-dialog');
+      assert.dom('.modal-title').hasText('Delete Attachment', ' Delete Attachment modal appears');
+
+      await click(jquerySelect('.modal-footer button:contains(Ok)'));
+      assert.equal(jqueryLength('#attachments td:contains(Incident Report Form)'), 0, 'Deleted attachment disappears');
     });
   });
-});
 
-test('Incident deletion', function(assert) {
-  runWithPouchDump('incident', function() {
-    authenticateUser();
-    visit('/incident');
-    andThen(() => {
+  test('Incident deletion', function(assert) {
+    return runWithPouchDump('incident', async function() {
+      await authenticateUser();
+      await visit('/incident');
       assert.equal(currentURL(), '/incident', 'Incident listing url is correct');
-      assert.equal(find('.incident-row').length, 1, 'One incident appears');
-      click('.incident-row button:contains(Delete)');
-      waitToAppear('.modal-dialog');
-    });
-    andThen(() => {
-      assert.equal(find('.modal-title').text(), 'Delete Incident', ' Delete Incident modal appears');
-      click('.modal-footer button:contains(Delete)');
-      waitToDisappear('.modal-dialog');
-    });
-    andThen(() => {
-      assert.equal(find('.incident-row').length, 0, 'Incident diappears from list');
-    });
-  });
-});
+      assert.dom('.incident-row').exists({ count: 1 }, 'One incident appears');
 
-function addItem(assert, itemName) {
-  click('button:contains(Add Item)');
-  waitToAppear('.modal-dialog');
-  andThen(() => {
-    assert.equal(find('.modal-title').text(), 'Add Category Item',
-                 'Add Category Item modal appears');
-    fillIn('.incident-category-item input', itemName);
+      await click(jquerySelect('.incident-row button:contains(Delete)'));
+      await waitToAppear('.modal-dialog');
+      assert.dom('.modal-title').hasText('Delete Incident', ' Delete Incident modal appears');
+
+      await click(jquerySelect('.modal-footer button:contains(Delete)'));
+      await waitToDisappear('.modal-dialog');
+      assert.dom('.incident-row').doesNotExist('Incident diappears from list');
+    });
   });
-  andThen(() => {
-    click('.modal-footer button:contains(Add)');
-    waitToAppear(`.incident-category-item:contains(${itemName})`);
-  });
-  andThen(() => {
-    assert.equal(find(`.incident-category-item:contains(${itemName})`).length,
-                 1, 'New incident category item appears');
-  });
-}
+
+  testSimpleReportForm('Incidents By Department', '2015-10-01', '2015-10-31');
+  testSimpleReportForm('Incidents By Category', '2015-10-01', '2015-10-31');
+  testEmptyEndDate('Incidents By Department', '2015-10-01');
+  testEmptyEndDate('Incidents By Category', '2015-10-01');
+  testEmptyStartDate('Incidents By Department');
+  testEmptyStartDate('Incidents By Category');
+  testEndDateBeforeStartDate('Incidents By Department');
+  testEndDateBeforeStartDate('Incidents By Category');
+
+  function testSimpleReportForm(reportName, start, end) {
+    test(`${reportName} report can be generated`, function(assert) {
+      return runWithPouchDump('default', async function() {
+        await authenticateUser();
+        await visit('/incident/reports');
+        assert.equal(currentURL(), '/incident/reports');
+
+        let startDate = moment(start);
+        let endDate = moment(end);
+        await selectDate('.test-start-date input', startDate.toDate());
+        await selectDate('.test-end-date input', endDate.toDate());
+        await select('#report-type', `${reportName}`);
+        await click(jquerySelect('button:contains(Generate Report)'));
+        await waitToAppear('.panel-title');
+
+        let reportTitle = `${reportName} Report ${startDate.format('l')} - ${endDate.format('l')}`;
+        assert.dom('.panel-title').hasText(reportTitle, `${reportName} Report generated`);
+        let exportLink = findWithAssert(jquerySelect('a:contains(Export Report)'));
+        assert.equal($(exportLink).attr('download'), `${reportTitle}.csv`);
+      });
+    });
+  }
+
+  function testEmptyEndDate(reportName, start) {
+    test(`${reportName} report can be generated with no end date`, function(assert) {
+      return runWithPouchDump('default', async function() {
+        await authenticateUser();
+        await visit('/incident/reports');
+        assert.equal(currentURL(), '/incident/reports');
+
+        let startDate = moment(start);
+        await selectDate('.test-start-date input', startDate.toDate());
+        await select('#report-type', `${reportName}`);
+        await click(jquerySelect('button:contains(Generate Report)'));
+        await waitToAppear('.panel-title');
+
+        let endDate = moment(new Date());
+        let reportTitle = `${reportName} Report ${startDate.format('l')} - ${endDate.format('l')}`;
+        assert.dom('.panel-title').hasText(reportTitle, `${reportName} Report generated`);
+        let exportLink = findWithAssert(jquerySelect('a:contains(Export Report)'));
+        assert.equal($(exportLink).attr('download'), `${reportTitle}.csv`);
+      });
+    });
+  }
+
+  function testEmptyStartDate(reportName) {
+    test(`${reportName} report cannot be generated without a start date`, function(assert) {
+      return runWithPouchDump('default', async function() {
+        let endDate = moment('2015-10-01');
+        await authenticateUser();
+        await visit('/incident/reports');
+        assert.equal(currentURL(), '/incident/reports');
+        await selectDate('.test-end-date input', endDate);
+        await select('#report-type', `${reportName}`);
+        await click(jquerySelect('button:contains(Generate Report)'));
+        await waitToAppear('.modal-dialog');
+        assert.dom('.modal-title').hasText('Error Generating Report', 'Error Generating Report');
+        assert.dom('.modal-body').hasText('Please enter a start date.');
+      });
+    });
+  }
+
+  function testEndDateBeforeStartDate(reportName) {
+    test(`${reportName} report cannot be generatedwith an end date before a start date`, function(assert) {
+      return runWithPouchDump('default', async function() {
+        let startDate = moment('2015-10-02');
+        let endDate = moment('2015-10-01');
+        await authenticateUser();
+        await visit('/incident/reports');
+        assert.equal(currentURL(), '/incident/reports');
+        await selectDate('.test-start-date input', startDate);
+        await selectDate('.test-end-date input', endDate);
+        await select('#report-type', `${reportName}`);
+        await click(jquerySelect('button:contains(Generate Report)'));
+        await waitToAppear('.modal-dialog');
+        assert.dom('.modal-title').hasText('Error Generating Report', 'Error Generating Report');
+        assert.dom('.modal-body').hasText('Please enter an end date after the start date.');
+      });
+    });
+  }
+
+  async function addItem(assert, itemName) {
+    await click(jquerySelect('button:contains(Add Item)'));
+    await waitToAppear('.modal-dialog');
+    assert.dom('.modal-title').hasText('Add Category Item', 'Add Category Item modal appears');
+
+    await fillIn('.incident-category-item input', itemName);
+    await click(jquerySelect('.modal-footer button:contains(Add)'));
+    await waitToAppear(`.incident-category-item:contains(${itemName})`);
+    assert.equal(jqueryLength(`.incident-category-item:contains(${itemName})`),
+      1, 'New incident category item appears');
+  }
+});

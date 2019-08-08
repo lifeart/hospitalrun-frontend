@@ -1,31 +1,34 @@
+import { resolve } from 'rsvp';
+import { computed } from '@ember/object';
+import { alias } from '@ember/object/computed';
+import { inject as controller } from '@ember/controller';
 import AbstractEditController from 'hospitalrun/controllers/abstract-edit-controller';
-import Ember from 'ember';
 import PatientSubmodule from 'hospitalrun/mixins/patient-submodule';
 
 export default AbstractEditController.extend(PatientSubmodule, {
   cancelAction: 'closeModal',
   findPatientVisits: false,
-  invoiceController: Ember.inject.controller('invoices'),
+  invoiceController: controller('invoices'),
   newPayment: false,
 
-  expenseAccountList: Ember.computed.alias('invoiceController.expenseAccountList'),
-  patientList: Ember.computed.alias('invoiceController.patientList'),
+  expenseAccountList: alias('invoiceController.expenseAccountList'),
+  patientList: alias('invoiceController.patientList'),
 
   _finishUpdate(message, title) {
     this.send('closeModal');
     this.displayAlert(title, message);
   },
 
-  currentPatient: function() {
+  currentPatient: computed('model.isNew', 'model.paymentType', 'model.invoice.patient', function() {
     let type = this.get('model.paymentType');
     if (type === 'Deposit') {
       return this.get('model.patient');
     } else {
       return this.get('model.invoice.patient');
     }
-  }.property('model.patient', 'model.paymentType', 'model.invoice.patient'),
+  }),
 
-  title: function() {
+  title: computed('model.isNew', 'model.paymentType', function() {
     let isNew = this.get('model.isNew');
     let type = this.get('model.paymentType');
     if (isNew) {
@@ -33,13 +36,13 @@ export default AbstractEditController.extend(PatientSubmodule, {
     } else {
       return `Edit ${type}`;
     }
-  }.property('model.isNew', 'model.paymentType'),
+  }),
 
-  selectPatient: function() {
+  selectPatient: computed('model.isNew', 'model.paymentType', function() {
     let isNew = this.get('model.isNew');
     let type = this.get('model.paymentType');
     return (isNew && type === 'Deposit');
-  }.property('model.isNew', 'model.paymentType'),
+  }),
 
   beforeUpdate() {
     if (this.get('model.isNew')) {
@@ -49,7 +52,7 @@ export default AbstractEditController.extend(PatientSubmodule, {
     }
     let patient = this.get('currentPatient');
     this.set('model.charityPatient', patient.get('patientType') === 'Charity');
-    return Ember.RSVP.resolve();
+    return resolve();
   },
 
   afterUpdate() {

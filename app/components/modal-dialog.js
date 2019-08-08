@@ -1,6 +1,10 @@
-import Ember from 'ember';
-export default Ember.Component.extend({
-  i18n: Ember.inject.service(),
+import { isEmpty } from '@ember/utils';
+import { inject as service } from '@ember/service';
+import Component from '@ember/component';
+import { computed } from '@ember/object';
+
+export default Component.extend({
+  intl: service(),
   cancelAction: 'cancel',
   closeModalAction: 'closeModal',
   hideCancelButton: false,
@@ -11,14 +15,16 @@ export default Ember.Component.extend({
   updateButtonClass: '',
   updateButtonText: '',
   cancelButtonText: '',
-  cancelBtnText: function() {
+
+  cancelBtnText: computed('cancelButtonText', function() {
     let cancelText = this.get('cancelButtonText');
-    if (Ember.isEmpty(cancelText)) {
-      return this.get('i18n').t('buttons.cancel');
+    if (isEmpty(cancelText)) {
+      return this.get('intl').t('buttons.cancel');
     } else {
       return cancelText;
     }
-  }.property('cancelButtonText'),
+  }),
+
   actions: {
     cancelAction() {
       this.sendAction('cancelAction');

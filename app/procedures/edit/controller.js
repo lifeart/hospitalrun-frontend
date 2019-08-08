@@ -1,31 +1,36 @@
+import { Promise as EmberPromise } from 'rsvp';
+import EmberObject from '@ember/object';
+import { alias } from '@ember/object/computed';
+import { inject as service } from '@ember/service';
+import { inject as controller } from '@ember/controller';
+import { computed } from '@ember/object';
 import AbstractEditController from 'hospitalrun/controllers/abstract-edit-controller';
 import ChargeActions from 'hospitalrun/mixins/charge-actions';
-import Ember from 'ember';
 import PatientSubmodule from 'hospitalrun/mixins/patient-submodule';
 
 export default AbstractEditController.extend(ChargeActions, PatientSubmodule, {
-  visitsController: Ember.inject.controller('visits'),
-  filesystem: Ember.inject.service(),
+  visitsController: controller('visits'),
+  filesystem: service(),
 
   chargePricingCategory: 'Procedure',
   chargeRoute: 'procedures.charge',
 
-  canAddPhoto: function() {
+  canAddPhoto: computed(function() {
     let isFileSystemEnabled = this.get('isFileSystemEnabled');
     return (this.currentUserCan('add_photo') && isFileSystemEnabled);
-  }.property(),
+  }),
 
-  canDeletePhoto: function() {
+  canDeletePhoto: computed(function() {
     return this.currentUserCan('delete_photo');
-  }.property(),
+  }),
 
-  anesthesiaTypes: Ember.computed.alias('visitsController.anesthesiaTypes'),
-  anesthesiologistList: Ember.computed.alias('visitsController.anesthesiologistList'),
-  cptCodeList: Ember.computed.alias('visitsController.cptCodeList'),
+  anesthesiaTypes: alias('visitsController.anesthesiaTypes'),
+  anesthesiologistList: alias('visitsController.anesthesiologistList'),
+  cptCodeList: alias('visitsController.cptCodeList'),
   medicationList: null,
-  physicianList: Ember.computed.alias('visitsController.physicianList'),
-  procedureList: Ember.computed.alias('visitsController.procedureList'),
-  procedureLocations: Ember.computed.alias('visitsController.procedureLocations'),
+  physicianList: alias('visitsController.physicianList'),
+  procedureList: alias('visitsController.procedureList'),
+  procedureLocations: alias('visitsController.procedureLocations'),
   lookupListsToUpdate: [{
     name: 'anesthesiaTypes',
     property: 'model.anesthesiaType',
@@ -56,19 +61,19 @@ export default AbstractEditController.extend(ChargeActions, PatientSubmodule, {
     id: 'procedure_locations'
   }],
 
-  editController: Ember.inject.controller('visits/edit'),
+  editController: controller('visits/edit'),
   pricingList: null, // This gets filled in by the route
-  pricingTypes: Ember.computed.alias('visitsController.procedurePricingTypes'),
+  pricingTypes: alias('visitsController.procedurePricingTypes'),
   newProcedure: false,
-  isFileSystemEnabled: Ember.computed.alias('filesystem.isFileSystemEnabled'),
+  isFileSystemEnabled: alias('filesystem.isFileSystemEnabled'),
 
-  title: function() {
+  title: computed('model.isNew', function() {
     let isNew = this.get('model.isNew');
     if (isNew) {
-      return this.get('i18n').t('procedures.titles.add');
+      return this.get('intl').t('procedures.titles.add');
     }
-    return this.get('i18n').t('procedures.titles.edit');
-  }.property('model.isNew'),
+    return this.get('intl').t('procedures.titles.edit');
+  }),
 
   updateCapability: 'add_procedure',
 
@@ -126,32 +131,32 @@ export default AbstractEditController.extend(ChargeActions, PatientSubmodule, {
     },
 
     showDeleteMedication(charge) {
-      this.send('openModal', 'dialog', Ember.Object.create({
+      this.send('openModal', 'dialog', EmberObject.create({
         closeModalOnConfirm: false,
         confirmAction: 'deleteCharge',
-        title: this.get('i18n').t('procedures.titles.deleteMedicationUsed'),
-        name: this.get('i18n').t('models.medication.names.singular'),
-        message: this.get('i18n').t('messages.delete_singular', { name: this.name }),
+        title: this.get('intl').t('procedures.titles.deleteMedicationUsed'),
+        name: this.get('intl').t('models.medication.names.singular'),
+        message: this.get('intl').t('messages.delete_singular', { name: this.name }),
         chargeToDelete: charge,
         updateButtonAction: 'confirm',
-        updateButtonText: this.get('i18n').t('buttons.ok')
+        updateButtonText: this.get('intl').t('buttons.ok')
       }));
     },
 
     showDeletePhoto(photo) {
-      this.send('openModal', 'dialog', Ember.Object.create({
+      this.send('openModal', 'dialog', EmberObject.create({
         confirmAction: 'deletePhoto',
-        title: this.get('i18n').t('patients.titles.deletePhoto'),
-        message: this.get('i18n').t('patients.titles.deletePhoto', { object: 'photo' }),
+        title: this.get('intl').t('patients.titles.deletePhoto'),
+        message: this.get('intl').t('patients.titles.deletePhoto', { object: 'photo' }),
         photoToDelete: photo,
         updateButtonAction: 'confirm',
-        updateButtonText: this.get('i18n').t('buttons.ok')
+        updateButtonText: this.get('intl').t('buttons.ok')
       }));
     }
   },
 
   beforeUpdate() {
-    return new Ember.RSVP.Promise(function(resolve, reject) {
+    return new EmberPromise(function(resolve, reject) {
       this.updateCharges().then(function() {
         if (this.get('model.isNew')) {
           this.addChildToVisit(this.get('model'), 'procedures').then(resolve, reject);
@@ -163,8 +168,8 @@ export default AbstractEditController.extend(ChargeActions, PatientSubmodule, {
   },
 
   afterUpdate() {
-    let alertTitle = this.get('i18n').t('procedures.titles.saved');
-    let alertMessage = this.get('i18n').t('procedures.messages.saved');
+    let alertTitle = this.get('intl').t('procedures.titles.saved');
+    let alertMessage = this.get('intl').t('procedures.messages.saved');
     this.saveVisitIfNeeded(alertTitle, alertMessage);
   }
 });

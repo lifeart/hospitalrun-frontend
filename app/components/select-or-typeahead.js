@@ -1,6 +1,9 @@
-import Ember from 'ember';
+import { isEmpty } from '@ember/utils';
+import Component from '@ember/component';
+import { computed } from '@ember/object';
 import SelectValues from 'hospitalrun/utils/select-values';
-export default Ember.Component.extend({
+
+export default Component.extend({
   name: 'select-or-typeahead',
   className: null,
   hint: true,
@@ -14,15 +17,15 @@ export default Ember.Component.extend({
   setOnBlur: true,
   typeAheadType: null,
 
-  content: function() {
+  content: computed('list.value.[]', function() {
     let list = this.get('list');
     let optionLabelPath = this.get('optionLabelPath');
     let optionValuePath = this.get('optionValuePath');
     let userCanAdd = this.get('userCanAdd');
 
-    if (!Ember.isEmpty(list) && list.get) {
+    if (!isEmpty(list) && list.get) {
       let contentList = list.get('value');
-      if (Ember.isEmpty(contentList)) {
+      if (isEmpty(contentList)) {
         return [];
       }
 
@@ -32,18 +35,18 @@ export default Ember.Component.extend({
         return contentList;
       }
     }
-  }.property('list.value.[]'),
+  }),
 
-  usePricingTypeAhead: function() {
+  usePricingTypeAhead: computed('typeAheadType', function() {
     return (this.get('typeAheadType') === 'pricing');
-  }.property('typeAheadType'),
+  }),
 
-  userCanAdd: function() {
+  userCanAdd: computed('list.userCanAdd', function() {
     let list = this.get('list');
-    if (!Ember.isEmpty(list) && list.get) {
+    if (!isEmpty(list) && list.get) {
       return list.get('userCanAdd');
     } else {
       return true;
     }
-  }.property('list.userCanAdd')
+  })
 });

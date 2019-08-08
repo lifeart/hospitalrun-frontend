@@ -1,8 +1,10 @@
-import Ember from 'ember';
+import { computed } from '@ember/object';
+import { isEmpty } from '@ember/utils';
+import Controller from '@ember/controller';
 import PaginationProps from 'hospitalrun/mixins/pagination-props';
 import ProgressDialog from 'hospitalrun/mixins/progress-dialog';
 import UserSession from 'hospitalrun/mixins/user-session';
-export default Ember.Controller.extend(PaginationProps, ProgressDialog, UserSession, {
+export default Controller.extend(PaginationProps, ProgressDialog, UserSession, {
   addPermission: null,
   deletePermission: null,
   nextStartKey: null,
@@ -14,39 +16,39 @@ export default Ember.Controller.extend(PaginationProps, ProgressDialog, UserSess
   sortDesc: false,
   sortKey: null,
 
-  canAdd: function() {
+  canAdd: computed(function() {
     return this.currentUserCan(this.get('addPermission'));
-  }.property(),
+  }),
 
-  canDelete: function() {
+  canDelete: computed(function() {
     return this.currentUserCan(this.get('deletePermission'));
-  }.property(),
+  }),
 
-  canEdit: function() {
+  canEdit: computed(function() {
     // Default to using add permission
     return this.currentUserCan(this.get('addPermission'));
-  }.property(),
+  }),
 
-  showActions: function() {
+  showActions: computed('canAdd', 'canEdit', 'canDelete', function() {
     return (this.get('canAdd') || this.get('canEdit') || this.get('canDelete'));
-  }.property('canAdd', 'canEdit', 'canDelete'),
+  }),
 
-  disablePreviousPage: function() {
-    return (Ember.isEmpty(this.get('previousStartKey')));
-  }.property('previousStartKey'),
+  disablePreviousPage: computed('previousStartKey', function() {
+    return isEmpty(this.get('previousStartKey'));
+  }),
 
-  disableNextPage: function() {
-    return (Ember.isEmpty(this.get('nextStartKey')));
-  }.property('nextStartKey'),
+  disableNextPage: computed('nextStartKey', function() {
+    return isEmpty(this.get('nextStartKey'));
+  }),
 
-  showPagination: function() {
-    return (!Ember.isEmpty(this.get('previousStartKey')) || !Ember.isEmpty(this.get('nextStartKey')));
-  }.property('nextStartKey', 'previousStartKey'),
+  showPagination: computed('nextStartKey', 'previousStartKey', function() {
+    return !isEmpty(this.get('previousStartKey')) || !isEmpty(this.get('nextStartKey'));
+  }),
 
-  hasRecords: Ember.computed('model.length', {
+  hasRecords: computed('model.length', {
     get() {
       let model = this.get('model');
-      if (!Ember.isEmpty(model)) {
+      if (!isEmpty(model)) {
         return (model.get('length') > 0);
       } else {
         return false;

@@ -1,7 +1,10 @@
-import Ember from 'ember';
-export default Ember.Component.extend({
-  isArray: function() {
+import { isArray } from '@ember/array';
+import { computed } from '@ember/object';
+import Component from '@ember/component';
+
+export default Component.extend({
+  isArray: computed('content', function() {
     let content = this.get('content');
-    return Ember.isArray(content);
-  }.property('content')
+    return isArray(content);
+  })
 });

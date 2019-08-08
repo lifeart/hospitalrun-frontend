@@ -1,15 +1,20 @@
+import { isEmpty } from '@ember/utils';
+import { alias } from '@ember/object/computed';
+import { inject as controller } from '@ember/controller';
 import AppointmentIndexController from 'hospitalrun/appointments/index/controller';
 import AppointmentStatuses from 'hospitalrun/mixins/appointment-statuses';
-import Ember from 'ember';
 import SelectValues from 'hospitalrun/utils/select-values';
 import VisitTypes from 'hospitalrun/mixins/visit-types';
+import { computed } from '@ember/object';
+
 export default AppointmentIndexController.extend(AppointmentStatuses, VisitTypes, {
-  appointmentsController: Ember.inject.controller('appointments'),
+  appointmentsController: controller('appointments'),
   appointmentType: null,
-  physicians: Ember.computed.alias('appointmentsController.physicianList.value'),
-  physicianList: function() {
+  physicians: alias('appointmentsController.physicianList.value'),
+
+  physicianList: computed('physicians', function() {
     return SelectValues.selectValues(this.get('physicians'), true);
-  }.property('physicians'),
+  }),
 
   provider: null,
   queryParams: ['appointmentType', 'provider', 'status', 'startKey', 'startDate'],
@@ -19,7 +24,7 @@ export default AppointmentIndexController.extend(AppointmentStatuses, VisitTypes
   startDate: null,
   startKey: [],
   status: null,
-  visitTypesList: Ember.computed.alias('appointmentsController.visitTypesList'),
+  visitTypesList: alias('appointmentsController.visitTypesList'),
 
   actions: {
     search() {
@@ -33,25 +38,25 @@ export default AppointmentIndexController.extend(AppointmentStatuses, VisitTypes
       let status = this.get('model.selectedStatus');
       let startDate = this.get('model.selectedStartingDate');
 
-      if (Ember.isEmpty(appointmentType)) {
+      if (isEmpty(appointmentType)) {
         fieldsToSet.appointmentType = null;
       } else {
         fieldsToSet.appointmentType = appointmentType;
       }
-      if (Ember.isEmpty(provider)) {
+      if (isEmpty(provider)) {
         fieldsToSet.provider = null;
       } else {
         fieldsToSet.provider = provider;
       }
-      if (Ember.isEmpty(status)) {
+      if (isEmpty(status)) {
         fieldsToSet.status = null;
       } else {
         fieldsToSet.status = status;
       }
-      if (!Ember.isEmpty(startDate)) {
+      if (!isEmpty(startDate)) {
         fieldsToSet.startDate = startDate.getTime();
       }
-      if (!Ember.isEmpty(fieldsToSet)) {
+      if (!isEmpty(fieldsToSet)) {
         this.setProperties(fieldsToSet);
       }
     }

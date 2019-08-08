@@ -1,15 +1,18 @@
-import Ember from 'ember';
+import { map } from '@ember/object/computed';
+import Mixin from '@ember/object/mixin';
 import SelectValues from 'hospitalrun/utils/select-values';
-export default Ember.Mixin.create({
+import { computed } from '@ember/object';
+
+export default Mixin.create({
   appointmentStatusList: [
     'Attended',
     'Scheduled',
     'Canceled',
     'Missed'
   ],
-  appointmentStatuses: Ember.computed.map('appointmentStatusList', SelectValues.selectValuesMap),
+  appointmentStatuses: map('appointmentStatusList', SelectValues.selectValuesMap),
 
-  appointmentStatusesWithEmpty: function() {
+  appointmentStatusesWithEmpty: computed(function() {
     return SelectValues.selectValues(this.get('appointmentStatusList'), true);
-  }.property()
+  })
 });

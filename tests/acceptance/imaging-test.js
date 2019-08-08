@@ -1,110 +1,98 @@
-import Ember from 'ember';
+import { click, fillIn, currentURL, visit, waitUntil } from '@ember/test-helpers';
+import { findWithAssert } from 'ember-native-dom-helpers';
 import { module, test } from 'qunit';
-import startApp from 'hospitalrun/tests/helpers/start-app';
+import jquerySelect from 'hospitalrun/tests/helpers/deprecated-jquery-select';
+import jqueryLength from 'hospitalrun/tests/helpers/deprecated-jquery-length';
+import { setupApplicationTest } from 'ember-qunit';
+import runWithPouchDump from 'hospitalrun/tests/helpers/run-with-pouch-dump';
+import typeAheadFillIn from 'hospitalrun/tests/helpers/typeahead-fillin';
+import { waitToAppear } from 'hospitalrun/tests/helpers/wait-to-appear';
+import { authenticateUser } from 'hospitalrun/tests/helpers/authenticate-user';
 
-module('Acceptance | imaging', {
-  beforeEach() {
-    this.application = startApp();
-  },
+module('Acceptance | imaging', function(hooks) {
+  setupApplicationTest(hooks);
 
-  afterEach() {
-    Ember.run(this.application, 'destroy');
-  }
-});
+  test('visiting /imaging', function(assert) {
+    return runWithPouchDump('default', async function() {
+      await authenticateUser();
+      await visit('/imaging');
 
-test('visiting /imaging', function(assert) {
-  runWithPouchDump('default', function() {
-    authenticateUser();
-    visit('/imaging');
-
-    andThen(() => {
       assert.equal(currentURL(), '/imaging');
-      let newImagingButton = find('button:contains(new imaging)');
-      assert.equal(newImagingButton.length, 1, 'New Imaging button is visible');
-      findWithAssert('p:contains(No items found. )');
-      findWithAssert('a:contains(Create a new record?)');
-    });
-    click('button:contains(new imaging)');
-    andThen(() => {
+      assert.equal(jqueryLength('button:contains(new imaging)'), 1, 'New Imaging button is visible');
+      findWithAssert(jquerySelect('p:contains(No items found. )'));
+      findWithAssert(jquerySelect('a:contains(Create a new record?)'));
+
+      await click(jquerySelect('button:contains(new imaging)'));
+      await waitUntil(() => currentURL() === '/imaging/edit/new');
       assert.equal(currentURL(), '/imaging/edit/new');
     });
   });
-});
 
-test('create a new imaging request', (assert) => {
-  runWithPouchDump('imaging', function() {
-    authenticateUser();
-    visit('/imaging/edit/new');
-
-    andThen(() => {
+  test('create a new imaging request', (assert) => {
+    return runWithPouchDump('imaging', async function() {
+      await authenticateUser();
+      await visit('/imaging/edit/new');
       assert.equal(currentURL(), '/imaging/edit/new');
-    });
-    typeAheadFillIn('.patient-input', 'Joe Bagadonuts - P00001');
-    typeAheadFillIn('.imaging-type-input', 'Chest Scan');
-    typeAheadFillIn('.radiologist-input', 'Dr Test');
-    fillIn('.result-input input', 'Check is clear');
-    fillIn('textarea', 'Patient is healthy');
-    click('button:contains(Add)');
-    waitToAppear('.modal-dialog');
-    andThen(() => {
-      assert.equal(find('.modal-title').text(), 'Imaging Request Saved', 'Imaging Request was saved successfully');
-    });
-    click('button:contains(Ok)');
-    andThen(() => {
-      findWithAssert('button:contains(Update)');
-      findWithAssert('button:contains(Return)');
-      findWithAssert('button:contains(Complete)');
-    });
-    andThen(() => {
-      assert.equal(find('.patient-summary').length, 1, 'Patient summary is displayed');
-    });
-    click('button:contains(Return)');
-    andThen(() => {
+
+      await typeAheadFillIn('.patient-input', 'Joe Bagadonuts - P00001');
+      await typeAheadFillIn('.imaging-type-input', 'Chest Scan');
+      await typeAheadFillIn('.radiologist-input', 'Dr Test');
+      await fillIn('.result-input input', 'Check is clear');
+      await fillIn('textarea', 'Patient is healthy');
+      await click(jquerySelect('button:contains(Add)'));
+      await waitToAppear('.modal-dialog');
+      assert.dom('.modal-title').hasText('Imaging Request Saved', 'Imaging Request was saved successfully');
+
+      await click(jquerySelect('button:contains(Ok)'));
+      findWithAssert(jquerySelect('button:contains(Update)'));
+      findWithAssert(jquerySelect('button:contains(Return)'));
+      findWithAssert(jquerySelect('button:contains(Complete)'));
+      assert.dom('.patient-summary').exists({ count: 1 }, 'Patient summary is displayed');
+
+      await click(jquerySelect('button:contains(Return)'));
+      await waitUntil(() => currentURL() === '/imaging');
       assert.equal(currentURL(), '/imaging');
-      assert.equal(find('tr').length, 3, 'Two imaging requests are displayed');
+      assert.dom('tr').exists({ count: 3 }, 'Two imaging requests are displayed');
     });
   });
-});
 
-test('completed requests are displayed', (assert) => {
-  runWithPouchDump('imaging', function() {
-    authenticateUser();
-    visit('/imaging/completed');
-
-    andThen(() => {
+  test('completed requests are displayed', (assert) => {
+    return runWithPouchDump('imaging', async function() {
+      await authenticateUser();
+      await visit('/imaging/completed');
       assert.equal(currentURL(), '/imaging/completed');
-      assert.equal(find('.table').length, 1, 'Requests table is visible');
+      assert.dom('.table').exists({ count: 1 }, 'Requests table is visible');
     });
   });
-});
 
-test('mark an imaging request as completed', (assert) => {
-  runWithPouchDump('imaging', function() {
-    authenticateUser();
-    visit('/imaging');
-
-    andThen(() => {
+  test('mark an imaging request as completed', (assert) => {
+    return runWithPouchDump('imaging', async function() {
+      await authenticateUser();
+      await visit('/imaging');
       assert.equal(currentURL(), '/imaging');
-      assert.equal(find('.table').length, 1, 'Requests table is visible');
-      assert.equal(find('tr').length, 2, 'One imaging request not completed');
-    });
-    click('button:contains(Edit):first');
-    andThen(() => {
+      assert.dom('.table').exists({ count: 1 }, 'Requests table is visible');
+      assert.dom('tr').exists({ count: 2 }, 'One imaging request not completed');
+
+      await click(jquerySelect('button:contains(Edit):first'));
+
+      await waitUntil(() => currentURL() === '/imaging/edit/12DEDA58-4670-7A74-BA8B-9CC5E5CA82E7');
       assert.equal(currentURL(), '/imaging/edit/12DEDA58-4670-7A74-BA8B-9CC5E5CA82E7');
-      findWithAssert('button:contains(Update)');
-      findWithAssert('button:contains(Return)');
-      findWithAssert('button:contains(Complete)');
-    });
-    click('button:contains(Complete)');
-    waitToAppear('.modal-dialog');
-    andThen(() => {
-      assert.equal(find('.modal-title').text(), 'Imaging Request Completed', 'Imaging Request was saved successfully');
-    });
-    click('button:contains(Ok)');
-    click('button:contains(Return)');
-    andThen(() => {
+
+      findWithAssert(jquerySelect('button:contains(Update)'));
+      findWithAssert(jquerySelect('button:contains(Return)'));
+      findWithAssert(jquerySelect('button:contains(Complete)'));
+
+      await click(jquerySelect('button:contains(Complete)'));
+      await waitToAppear('.modal-dialog');
+      assert.dom('.modal-title').hasText('Imaging Request Completed', 'Imaging Request was saved successfully');
+
+      await click(jquerySelect('button:contains(Ok)'));
+      await click(jquerySelect('button:contains(Return)'));
+
+      await waitUntil(() => currentURL() === '/imaging');
       assert.equal(currentURL(), '/imaging');
-      findWithAssert('a:contains(Create a new record?)');
+
+      findWithAssert(jquerySelect('a:contains(Create a new record?)'));
     });
   });
 });

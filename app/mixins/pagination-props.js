@@ -1,6 +1,7 @@
-import Ember from 'ember';
-export default Ember.Mixin.create({
-  paginationProps: function() {
+import Mixin from '@ember/object/mixin';
+import { computed } from '@ember/object';
+export default Mixin.create({
+  paginationProps: computed('disableNextPage', 'disablePreviousPage', 'showFirstPageButton', 'showLastPageButton', 'showPagination', function() {
     let paginationProperties = [
       'disableNextPage',
       'disablePreviousPage',
@@ -9,5 +10,5 @@ export default Ember.Mixin.create({
       'showPagination'
     ];
     return this.getProperties(paginationProperties);
-  }.property('disableNextPage', 'disablePreviousPage', 'showFirstPageButton', 'showLastPageButton', 'showPagination')
+  })
 });

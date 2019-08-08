@@ -1,61 +1,70 @@
-import { moduleFor } from 'ember-qunit';
+import { Promise as EmberPromise } from 'rsvp';
+import { run } from '@ember/runloop';
+import { module } from 'qunit';
+import { setupTest } from 'ember-qunit';
 import test from 'ember-sinon-qunit/test-support/test';
-import Ember from 'ember';
 import DS from 'ember-data';
 
-moduleFor('controller:abstract-delete-controller', 'Unit | Controller | abstract-delete-controller', {
-  unit: true,
-  testModel(attrs) {
-    return Ember.run(() => {
-      this.register('model:test', DS.Model);
-      return this.store().createRecord('test', attrs);
-    });
-  },
-  store() {
-    return this.container.lookup('service:store');
-  },
-  sendStub(controller) {
-    let once = false;
-    let originalSend = controller.send.bind(controller);
-    return (arg) => {
-      if (once) {
-        return;
-      }
+module('Unit | Controller | abstract-delete-controller', function(hooks) {
+  setupTest(hooks);
 
-      once = true;
-      originalSend(arg);
+  hooks.beforeEach(function() {
+    this.testModel = function(attrs) {
+      return run(() => {
+        this.owner.register('model:test', DS.Model);
+        return this.store().createRecord('test', attrs);
+      });
     };
-  }
-});
 
-test('actions.cancel', function(assert) {
-  let controller = this.subject();
-  let send = this.stub(controller, 'send', this.sendStub(controller));
+    this.store = function() {
+      return this.owner.lookup('service:store');
+    };
 
-  controller.send('cancel');
+    this.sendStub = function(controller) {
+      let once = false;
+      let originalSend = controller.send.bind(controller);
+      return (arg) => {
+        if (once) {
+          return;
+        }
 
-  assert.equal(send.getCall(0).args[0], 'cancel');
-  assert.equal(send.getCall(1).args[0], 'closeModal', 'Should close modal');
-});
-
-test('actions.delete', function(assert) {
-  let controller = this.subject({
-    model: this.testModel({
-      save: () => {},
-      unloadRecord: () => {}
-    })
+        once = true;
+        originalSend(arg);
+      };
+    };
   });
-  let send = this.stub(controller, 'send', this.sendStub(controller));
-  let save = this.stub(controller.get('model'), 'save', () => {
-    return new Ember.RSVP.Promise((resolve) => resolve());
+
+  test('actions.cancel', function(assert) {
+    let controller = this.owner.lookup('controller:abstract-delete-controller');
+    let sendStubFn = this.sendStub(controller);
+    let send = this.stub(controller, 'send').callsFake(sendStubFn);
+
+    controller.send('cancel');
+
+    assert.equal(send.getCall(0).args[0], 'cancel');
+    assert.equal(send.getCall(1).args[0], 'closeModal', 'Should close modal');
   });
-  let unloadRecord = this.stub(controller.get('model'), 'unloadRecord');
 
-  Ember.run(() => controller.send('delete'));
+  test('actions.delete', function(assert) {
+    let controller = this.owner.factoryFor('controller:abstract-delete-controller').create({
+      model: this.testModel({
+        save: () => {},
+        unloadRecord: () => {}
+      })
+    });
+    let sendStubFn = this.sendStub(controller);
+    let send = this.stub(controller, 'send').callsFake(sendStubFn);
+    let save = this.stub(controller.get('model'), 'save').callsFake(() => {
+      return new EmberPromise((resolve) => resolve());
+    });
+    let unloadRecord = this.stub(controller.get('model'), 'unloadRecord');
 
-  assert.equal(send.getCall(0).args[0], 'delete');
-  assert.ok(save.calledOnce, 'Should save model');
-  assert.strictEqual(controller.get('model.archived'), true, 'Should archive model');
-  assert.ok(unloadRecord.calledOnce, 'Should unload record of model');
-  assert.equal(send.getCall(1).args[0], 'closeModal', 'Should close modal');
+    run(() => controller.send('delete'));
+
+    assert.equal(send.getCall(0).args[0], 'delete');
+    assert.ok(save.calledTwice, 'Should save model');
+    assert.strictEqual(controller.get('model.archived'), true, 'Should archive model');
+    assert.ok(unloadRecord.calledOnce, 'Should unload record of model');
+    assert.equal(send.getCall(1).args[0], 'closeModal', 'Should close modal');
+  });
 });

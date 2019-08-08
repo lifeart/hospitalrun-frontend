@@ -1,14 +1,12 @@
-import Ember from 'ember';
+import { Promise as EmberPromise } from 'rsvp';
+import { alias } from '@ember/object/computed';
+import { computed } from '@ember/object';
 import AbstractEditController from 'hospitalrun/controllers/abstract-edit-controller';
-
-const {
-  computed
-} = Ember;
 
 export default AbstractEditController.extend({
   updateCapability: 'add_diagnosis',
-  editController: Ember.computed.alias('model.editController'),
-  diagnosisList: Ember.computed.alias('editController.diagnosisList'),
+  editController: alias('model.editController'),
+  diagnosisList: alias('editController.diagnosisList'),
   newDiagnosis: false,
 
   lookupListsToUpdate: [{
@@ -18,14 +16,14 @@ export default AbstractEditController.extend({
   }],
 
   additionalButtons: computed('model.isNew', function() {
-    let i8n = this.get('i18n');
+    let intl = this.get('intl');
     let isNew = this.get('model.isNew');
     if (!isNew) {
       return [{
         class: 'btn btn-default warning',
         buttonAction: 'deleteDiagnosis',
         buttonIcon: 'octicon octicon-x',
-        buttonText: i8n.t('buttons.delete')
+        buttonText: intl.t('buttons.delete')
       }];
     }
   }),
@@ -35,12 +33,12 @@ export default AbstractEditController.extend({
   }),
 
   title: computed('model.isNew', function() {
-    let i8n = this.get('i18n');
+    let intl = this.get('intl');
     let isNew = this.get('model.isNew');
     if (isNew) {
-      return i8n.t('diagnosis.titles.addDiagnosis');
+      return intl.t('diagnosis.titles.addDiagnosis');
     } else {
-      return i8n.t('diagnosis.titles.editDiagnosis');
+      return intl.t('diagnosis.titles.editDiagnosis');
     }
   }),
 
@@ -56,7 +54,7 @@ export default AbstractEditController.extend({
   beforeUpdate() {
     let diagnosis = this.get('model');
     this.set('newDiagnosis', diagnosis.get('isNew'));
-    return Ember.RSVP.Promise.resolve();
+    return EmberPromise.resolve();
   },
 
   actions: {

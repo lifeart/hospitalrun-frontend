@@ -1,17 +1,20 @@
+import { inject as service } from '@ember/service';
+import { isEmpty } from '@ember/utils';
+import Route from '@ember/routing/route';
+import { set, get } from '@ember/object';
 import ApplicationRouteMixin from 'ember-simple-auth/mixins/application-route-mixin';
-import Ember from 'ember';
 import ModalHelper from 'hospitalrun/mixins/modal-helper';
 import SetupUserRole from 'hospitalrun/mixins/setup-user-role';
 import UnauthorizedError from 'hospitalrun/utils/unauthorized-error';
-
-const { get, inject, isEmpty, Route, set } = Ember;
+import { DEFAULT_LANGUAGE } from 'hospitalrun/services/language-preference';
 
 const TRANSITION_AFTER_LOGIN = 'transitionAfterLogin';
 
 let ApplicationRoute = Route.extend(ApplicationRouteMixin, ModalHelper, SetupUserRole, {
-  database: inject.service(),
-  config: inject.service(),
-  session: inject.service(),
+  database: service(),
+  config: service(),
+  session: service(),
+  languagePreference: service(),
   shouldSetupUserRole: true,
 
   actions: {
@@ -24,10 +27,10 @@ let ApplicationRoute = Route.extend(ApplicationRouteMixin, ModalHelper, SetupUse
 
     error(reason, transition) {
       if (reason instanceof UnauthorizedError) {
-        let i18n = this.get('i18n');
-        let message = i18n.t('application.messages.sessionExpired');
+        let intl = this.get('intl');
+        let message = intl.t('application.messages.sessionExpired');
         let session = get(this, 'session');
-        let title = i18n.t('application.titles.sessionExpired');
+        let title = intl.t('application.titles.sessionExpired');
         if (!isEmpty(transition)) {
           let sessionStore = session.get('store');
           let sessionData = session.get('data');
@@ -78,6 +81,11 @@ let ApplicationRoute = Route.extend(ApplicationRouteMixin, ModalHelper, SetupUse
     }
   },
 
+  beforeModel() {
+    let intl = this.get('intl');
+    intl.setLocale(DEFAULT_LANGUAGE);
+  },
+
   model(params, transition) {
     let session = get(this, 'session');
     let isAuthenticated = session && get(session, 'isAuthenticated');
@@ -104,12 +112,11 @@ let ApplicationRoute = Route.extend(ApplicationRouteMixin, ModalHelper, SetupUse
   },
 
   afterModel() {
-    set(this.controllerFor('navigation'), 'allowSearch', false);
+    set(this.controllerFor('application'), 'allowSearch', false);
     $('#apploading').remove();
-    this.get('config.configDB').get('current_user').then((user) => {
-      let language = user.i18n || 'en';
-      this.set('i18n.locale', language);
-    });
+
+    // this enables page reloading support
+    this.get('languagePreference').loadUserLanguagePreference();
   },
 
   renderModal(template) {
@@ -135,6 +142,12 @@ let ApplicationRoute = Route.extend(ApplicationRouteMixin, ModalHelper, SetupUse
     } else {
       this._super();
     }
+
+    this.get('languagePreference').loadUserLanguagePreference();
+  },
+  sessionInvalidated() {
+    this._super();
+    this.get('languagePreference').setApplicationLanguage(DEFAULT_LANGUAGE);
   }
 });
 export default ApplicationRoute;

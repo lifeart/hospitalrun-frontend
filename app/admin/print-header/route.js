@@ -1,6 +1,6 @@
+import { Promise as EmberPromise } from 'rsvp';
 import AbstractEditRoute from 'hospitalrun/routes/abstract-edit-route';
-import Ember from 'ember';
-import { translationMacro as t } from 'ember-i18n';
+import { t } from 'hospitalrun/macro';
 import UnauthorizedError from 'hospitalrun/utils/unauthorized-error';
 
 export default AbstractEditRoute.extend({
@@ -8,7 +8,7 @@ export default AbstractEditRoute.extend({
   newTitle: t('admin.header.newTitle'),
   editTitle: t('admin.header.editTitle'),
   model() {
-    return new Ember.RSVP.Promise((resolve, reject) => {
+    return new EmberPromise((resolve, reject) => {
       this.get('store').find('option', 'print_header').then((headerOptions) => {
         resolve(headerOptions);
       }, (err) => {
@@ -19,8 +19,8 @@ export default AbstractEditRoute.extend({
           let newConfig = store.push(store.normalize('option', {
             id: 'print_header',
             value: {
-              facilityName: this.get('i18n').t('admin.header.facilityName'),
-              headerLine1: this.get('i18n').t('admin.header.headerLine1')
+              facilityName: this.get('intl').t('admin.header.facilityName'),
+              headerLine1: this.get('intl').t('admin.header.headerLine1')
             }
           }));
           resolve(newConfig);

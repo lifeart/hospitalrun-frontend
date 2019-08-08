@@ -1,200 +1,156 @@
-import Ember from 'ember';
+import { click, fillIn, findAll, currentURL, visit, waitUntil } from '@ember/test-helpers';
+import jquerySelect from 'hospitalrun/tests/helpers/deprecated-jquery-select';
+import { findWithAssert } from 'ember-native-dom-helpers';
 import { module, test } from 'qunit';
-import startApp from 'hospitalrun/tests/helpers/start-app';
+import { setupApplicationTest } from 'ember-qunit';
+import runWithPouchDump from 'hospitalrun/tests/helpers/run-with-pouch-dump';
+import typeAheadFillIn from 'hospitalrun/tests/helpers/typeahead-fillin';
+import { waitToAppear, waitToDisappear } from 'hospitalrun/tests/helpers/wait-to-appear';
+import { authenticateUser } from 'hospitalrun/tests/helpers/authenticate-user';
 
-module('Acceptance | medication', {
-  beforeEach() {
-    this.application = startApp();
-  },
+module('Acceptance | medication', function(hooks) {
+  setupApplicationTest(hooks);
 
-  afterEach() {
-    Ember.run(this.application, 'destroy');
-  }
-});
+  test('visiting /medication', function(assert) {
+    return runWithPouchDump('default', async function() {
+      await authenticateUser();
+      await visit('/medication');
 
-test('visiting /medication', function(assert) {
-  runWithPouchDump('default', function() {
-    authenticateUser();
-    visit('/medication');
-
-    andThen(function() {
       assert.equal(currentURL(), '/medication');
-      findWithAssert('button:contains(new request)');
-      findWithAssert('button:contains(dispense medication)');
-      findWithAssert('button:contains(return medication)');
-      findWithAssert('p:contains(No items found. )');
-      findWithAssert('a:contains(Create a new medication request?)');
+      findWithAssert(jquerySelect('button:contains(new request)'));
+      findWithAssert(jquerySelect('button:contains(dispense medication)'));
+      findWithAssert(jquerySelect('button:contains(return medication)'));
+      findWithAssert(jquerySelect('p:contains(No items found. )'));
+      findWithAssert(jquerySelect('a:contains(Create a new medication request?)'));
     });
   });
-});
 
-test('creating a new medication request', function(assert) {
-  runWithPouchDump('medication', function() {
-    authenticateUser();
-    visit('/medication/edit/new');
-
-    andThen(function() {
+  test('creating a new medication request', function(assert) {
+    return runWithPouchDump('medication', async function() {
+      await authenticateUser();
+      await visit('/medication/edit/new');
       assert.equal(currentURL(), '/medication/edit/new');
-    });
-    typeAheadFillIn('.test-patient-input', 'Lennex Zinyando - P00017');
-    waitToAppear('.have-inventory-items');
-    andThen(() => {
-      typeAheadFillIn('.test-medication-input', 'Biogesic - m00001 (950 available)');
-    });
-    andThen(() => {
-      fillIn('textarea', '30 Biogesic Pills');
-      fillIn('.test-quantity-input input', '30');
-    });
-    waitToDisappear('.disabled-btn:contains(Add)');
-    andThen(() =>{
-      click('button:contains(Add)');
-      waitToAppear('.modal-dialog');
-    });
-    andThen(() => {
-      assert.equal(find('.modal-title').text().trim(), 'Medication Request Saved', 'New medication request has been saved');
-    });
 
-    click('button:contains(Ok)');
-    click('button:contains(Return)');
-    andThen(() => {
+      await typeAheadFillIn('.test-patient-input', 'Lennex Zinyando - P00017');
+      await waitToAppear('.have-inventory-items');
+      await typeAheadFillIn('.test-medication-input', 'Biogesic - m00001 (950 available)');
+      await fillIn('textarea', '30 Biogesic Pills');
+      await fillIn('.test-quantity-input input', '30');
+      await waitToDisappear('.disabled-btn:contains(Add)');
+      await click(jquerySelect('button:contains(Add)'));
+      await waitToAppear('.modal-dialog');
+      assert.dom('.modal-title').hasText('Medication Request Saved', 'New medication request has been saved');
+
+      await click(jquerySelect('button:contains(Ok)'));
+      await click(jquerySelect('button:contains(Return)'));
+
+      await waitUntil(() => currentURL() === '/medication');
+
       assert.equal(currentURL(), '/medication');
-      assert.equal(find('tr').length, 3, 'New medication request is now displayed');
+      assert.dom('tr').exists({ count: 3 }, 'New medication request is now displayed');
     });
   });
-});
 
-test('fulfilling a medication request', function(assert) {
-  runWithPouchDump('medication', function() {
-    authenticateUser();
-    visit('/medication');
-    click('button:contains(Fulfill)');
+  test('fulfilling a medication request', function(assert) {
+    return runWithPouchDump('medication', async function() {
+      await authenticateUser();
+      await visit('/medication');
+      await click(jquerySelect('button:contains(Fulfill)'));
+      assert.dom('.patient-summary').exists({ count: 1 }, 'Patient summary is displayed');
 
-    andThen(function() {
-      assert.equal(find('.patient-summary').length, 1, 'Patient summary is displayed');
-    });
-    waitToAppear('.inventory-location option:contains(No Location)');
-    andThen(() => {
-      click('button:contains(Fulfill)');
-      waitToAppear('.modal-dialog');
-    });
-    andThen(() => {
-      assert.equal(find('.modal-title').text().trim(), 'Medication Request Fulfilled', 'Medication Request has been Fulfilled');
-    });
+      await waitToAppear('.inventory-location option:contains(No Location)');
+      await click(jquerySelect('button:contains(Fulfill)'));
+      await waitToAppear('.modal-dialog');
+      assert.dom('.modal-title').hasText('Medication Request Fulfilled', 'Medication Request has been Fulfilled');
 
-    click('button:contains(Ok)');
-    click('button:contains(Return)');
+      await click(jquerySelect('button:contains(Ok)'));
+      await click(jquerySelect('button:contains(Return)'));
 
-    andThen(() => {
+      await waitUntil(() => currentURL() === '/medication');
+
       assert.equal(currentURL(), '/medication');
-      findWithAssert('p:contains(No items found. )');
-      findWithAssert('a:contains(Create a new medication request?)');
+      findWithAssert(jquerySelect('p:contains(No items found. )'));
+      findWithAssert(jquerySelect('a:contains(Create a new medication request?)'));
     });
   });
-});
 
-test('complete a medication request', function(assert) {
-  runWithPouchDump('medication', function() {
-    authenticateUser();
-    visit('/medication/completed');
-    assert.equal(find('.clickable').length, 0, 'Should have 0 completed request');
-    visit('/medication');
-    click('button:contains(Fulfill)');
+  test('complete a medication request', function(assert) {
+    return runWithPouchDump('medication', async function() {
+      await authenticateUser();
+      await visit('/medication/completed');
+      assert.dom('.clickable').doesNotExist('Should have 0 completed request');
 
-    andThen(function() {
-      assert.equal(find('.patient-summary').length, 1, 'Patient summary is displayed');
-    });
-    waitToAppear('.inventory-location option:contains(No Location)');
-    andThen(() => {
-      click('button:contains(Fulfill)');
-      waitToAppear('.modal-dialog');
-    });
-    andThen(() => {
-      assert.equal(find('.modal-title').text().trim(), 'Medication Request Fulfilled', 'Medication Request has been Fulfilled');
-    });
+      await visit('/medication');
+      await click(jquerySelect('button:contains(Fulfill)'));
+      assert.dom('.patient-summary').exists({ count: 1 }, 'Patient summary is displayed');
 
-    click('button:contains(Ok)');
-    visit('/medication/completed');
-    andThen(() => {
+      await waitToAppear('.inventory-location option:contains(No Location)');
+      await click(jquerySelect('button:contains(Fulfill)'));
+      await waitToAppear('.modal-dialog');
+      assert.dom('.modal-title').hasText('Medication Request Fulfilled', 'Medication Request has been Fulfilled');
+
+      await click(jquerySelect('button:contains(Ok)'));
+      await visit('/medication/completed');
       assert.equal(currentURL(), '/medication/completed');
-      assert.equal(find('.clickable').length, 1, 'Should have 1 completed request');
+      assert.dom('.clickable').exists({ count: 1 }, 'Should have 1 completed request');
     });
   });
-});
 
-test('returning medication', function(assert) {
-  runWithPouchDump('medication', function() {
-    authenticateUser();
-    visit('/medication/return/new');
-
-    andThen(function() {
+  test('returning medication', function(assert) {
+    return runWithPouchDump('medication', async function() {
+      await authenticateUser();
+      await visit('/medication/return/new');
       assert.equal(currentURL(), '/medication/return/new');
-    });
-    waitToAppear('.have-inventory-items');
-    andThen(() => {
-      typeAheadFillIn('.test-medication-input', 'Biogesic - m00001');
-    });
-    andThen(() => {
-      fillIn('.test-medication-quantity input', 30);
-      waitToDisappear('.disabled-btn:contains(Return Medication)');
-    });
-    andThen(() => {
-      click('button:contains(Return Medication)');
-      waitToAppear('.modal-dialog');
-    });
-    andThen(() => {
-      assert.equal(find('.modal-title').text(), 'Medication Returned', 'Medication has been return successfully');
-    });
-    click('button:contains(Ok)');
 
-    andThen(() => {
+      await waitToAppear('.have-inventory-items');
+      await typeAheadFillIn('.test-medication-input', 'Biogesic - m00001');
+      await fillIn('.test-medication-quantity input', 30);
+      await waitToDisappear('.disabled-btn:contains(Return Medication)');
+      await click(jquerySelect('button:contains(Return Medication)'));
+      await waitToAppear('.modal-dialog');
+      assert.dom('.modal-title').hasText('Medication Returned', 'Medication has been return successfully');
+      await click(jquerySelect('button:contains(Ok)'));
+
+      await waitUntil(() => currentURL() === '/medication');
+
       assert.equal(currentURL(), '/medication');
     });
   });
-});
 
-test('Searching medications', function(assert) {
-  runWithPouchDump('medication', function() {
-    authenticateUser();
-    visit('/medication');
+  test('Searching medications', function(assert) {
+    return runWithPouchDump('medication', async function() {
+      await authenticateUser();
+      await visit('/medication');
 
-    fillIn('[role="search"] div input', 'Biogesic');
-    click('.glyphicon-search');
+      await fillIn('[role="search"] div input', 'Biogesic');
+      await click('.glyphicon-search');
 
-    andThen(() => {
       assert.equal(currentURL(), '/medication/search/Biogesic', 'Searched for Medication Title: Biogesic');
-      assert.equal(find('.clickable').length, 1, 'There is one search item');
-    });
+      assert.dom('.clickable').exists({ count: 1 }, 'There is one search item');
 
-    fillIn('[role="search"] div input', 'gesic');
-    click('.glyphicon-search');
+      await fillIn('[role="search"] div input', 'gesic');
+      await click('.glyphicon-search');
 
-    andThen(() => {
       assert.equal(currentURL(), '/medication/search/gesic', 'Searched for all lower case gesic');
-      assert.equal(find('.clickable').length, 1, 'There is one search item');
-    });
+      assert.dom('.clickable').exists({ count: 1 }, 'There is one search item');
 
-    fillIn('[role="search"] div input', 'hradmin');
-    click('.glyphicon-search');
+      await fillIn('[role="search"] div input', 'hradmin');
+      await click('.glyphicon-search');
 
-    andThen(() => {
       assert.equal(currentURL(), '/medication/search/hradmin', 'Searched for Prescriber: hradmin');
-      assert.notEqual(find('.clickable').length, 0, 'There are one or more search item');
-    });
+      assert.notEqual(findAll('.clickable').length, 0, 'There are one or more search item');
 
-    fillIn('[role="search"] div input', '60 Biogesic Pills');
-    click('.glyphicon-search');
+      await fillIn('[role="search"] div input', '60 Biogesic Pills');
+      await click('.glyphicon-search');
 
-    andThen(() => {
       assert.equal(currentURL(), '/medication/search/60%20Biogesic%20Pills', 'Searched for Prescription: 60 Biogesic Pills');
-      assert.equal(find('.clickable').length, 1, 'There is one search item');
-    });
+      assert.dom('.clickable').exists({ count: 1 }, 'There is one search item');
 
-    fillIn('[role="search"] div input', 'ItemNotFound');
-    click('.glyphicon-search');
+      await fillIn('[role="search"] div input', 'ItemNotFound');
+      await click('.glyphicon-search');
 
-    andThen(() => {
       assert.equal(currentURL(), '/medication/search/ItemNotFound', 'Searched for ItemNotFound');
-      assert.equal(find('.clickable').length, 0, 'There is no search result');
+      assert.dom('.clickable').doesNotExist('There is no search result');
     });
   });
 });

@@ -1,12 +1,9 @@
-import Ember from 'ember';
+import { inject as service } from '@ember/service';
+import Component from '@ember/component';
+import { get, computed } from '@ember/object';
 import PatientDiagnosis from 'hospitalrun/mixins/patient-diagnosis';
-import { translationMacro as t } from 'ember-i18n';
+import { t } from 'hospitalrun/macro';
 import UserSession from 'hospitalrun/mixins/user-session';
-
-const {
-  computed,
-  get
-} = Ember;
 
 const DIAGNOSIS_KEYS = [
   'diagnosisContainer',
@@ -15,8 +12,8 @@ const DIAGNOSIS_KEYS = [
   'diagnosisContainer.diagnoses.@each.secondaryDiagnosis'
 ];
 
-export default Ember.Component.extend(PatientDiagnosis, UserSession, {
-  i18n: Ember.inject.service(),
+export default Component.extend(PatientDiagnosis, UserSession, {
+  intl: service(),
   allowAddDiagnosis: false,
   diagnosisContainer: null,
   diagnosisProperty: null,
@@ -79,5 +76,4 @@ export default Ember.Component.extend(PatientDiagnosis, UserSession, {
       this.sendAction('showAddDiagnosisAction');
     }
   }
-
 });

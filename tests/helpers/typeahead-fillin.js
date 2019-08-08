@@ -1,9 +1,12 @@
-import Ember from 'ember';
+import { fillIn, triggerEvent } from '@ember/test-helpers';
+import jquerySelect from 'hospitalrun/tests/helpers/deprecated-jquery-select';
 
-Ember.Test.registerAsyncHelper('typeAheadFillIn', function(app, selector, value) {
+async function typeAheadFillIn(selector, value) {
   let typeAheadSelector = `${selector} .tt-input`;
-  fillIn(typeAheadSelector, value);
-  triggerEvent(typeAheadSelector, 'input');
-  triggerEvent(typeAheadSelector, 'blur');
-  return app.testHelpers.wait();
-});
+  let typeAheadElement = jquerySelect(typeAheadSelector);
+  await fillIn(typeAheadElement, value);
+  await triggerEvent(typeAheadElement, 'input');
+  await triggerEvent(typeAheadElement, 'blur');
+}
+
+export default typeAheadFillIn;

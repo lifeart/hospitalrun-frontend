@@ -1,19 +1,15 @@
-import { translationMacro as t } from 'ember-i18n';
+import { inject as service } from '@ember/service';
+import EmberObject, { set, get } from '@ember/object';
+import { isEmpty } from '@ember/utils';
+import { t } from 'hospitalrun/macro';
 import AbstractEditRoute from 'hospitalrun/routes/abstract-edit-route';
 import ChargeRoute from 'hospitalrun/mixins/charge-route';
-import Ember from 'ember';
 import PatientListRoute from 'hospitalrun/mixins/patient-list-route';
 import PatientVisit from 'hospitalrun/mixins/patient-visits';
 import DS from 'ember-data';
 
-const {
-  get,
-  set,
-  isEmpty
-} = Ember;
-
 export default AbstractEditRoute.extend(ChargeRoute, PatientListRoute, PatientVisit, {
-  customForms: Ember.inject.service(),
+  customForms: service(),
   editTitle: t('visits.titles.editVisit'),
   modelName: 'visit',
   newTitle: t('visits.titles.newVisit'),
@@ -37,7 +33,7 @@ export default AbstractEditRoute.extend(ChargeRoute, PatientListRoute, PatientVi
     let newVisitData = {
       startDate: new Date(),
       visitType: 'Admission',
-      customForms: Ember.Object.create()
+      customForms: EmberObject.create()
     };
     let customForms = this.get('customForms');
     return customForms.setDefaultCustomForms(['visit'], newVisitData);
@@ -45,7 +41,7 @@ export default AbstractEditRoute.extend(ChargeRoute, PatientListRoute, PatientVi
 
   getScreenTitle(model) {
     if (model.get('checkIn')) {
-      return this.get('i18n').t('visits.titles.patientCheckIn');
+      return this.get('intl').t('visits.titles.patientCheckIn');
     } else {
       return this._super(model);
     }

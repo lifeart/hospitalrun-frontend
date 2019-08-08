@@ -1,23 +1,17 @@
+import { Promise as EmberPromise } from 'rsvp';
+import { inject as controller } from '@ember/controller';
+import { computed, set, get } from '@ember/object';
+import { alias } from '@ember/object/computed';
 import AbstractEditController from 'hospitalrun/controllers/abstract-edit-controller';
-import Ember from 'ember';
 import PatientSubmodule from 'hospitalrun/mixins/patient-submodule';
 import PatientDiagnosis from 'hospitalrun/mixins/patient-diagnosis';
 import PouchDbMixin from 'hospitalrun/mixins/pouchdb';
-
-const {
-  get,
-  set,
-  computed,
-  computed: {
-    alias
-  }
-} = Ember;
 
 export default AbstractEditController.extend(PatientSubmodule, PatientDiagnosis, PouchDbMixin, {
   queryParams: ['print'],
   print: null,
 
-  visitsController: Ember.inject.controller('visits'),
+  visitsController: controller('visits'),
 
   physicianList: alias('visitsController.physicianList'),
 
@@ -31,13 +25,13 @@ export default AbstractEditController.extend(PatientSubmodule, PatientDiagnosis,
 
   additionalButtons: computed('model.isNew', function() {
     let isNew = get(this, 'model.isNew');
-    let i18n = get(this, 'i18n');
+    let intl = get(this, 'intl');
     if (!isNew) {
       return [{
         class: 'btn btn-primary on-white',
         buttonAction: 'printReport',
         buttonIcon: 'octicon octicon-check',
-        buttonText: i18n.t('labels.print')
+        buttonText: intl.t('labels.print')
       }];
     }
   }),
@@ -45,7 +39,7 @@ export default AbstractEditController.extend(PatientSubmodule, PatientDiagnosis,
   updateCapability: 'add_report',
 
   beforeUpdate() {
-    return new Ember.RSVP.Promise((resolve) => {
+    return new EmberPromise((resolve) => {
       let model = get(this, 'model');
       if (get(model, 'isNew')) {
         if (get(this, 'model.visit.outPatient')) {
@@ -59,11 +53,11 @@ export default AbstractEditController.extend(PatientSubmodule, PatientDiagnosis,
   },
 
   afterUpdate() {
-    let alertTitle = get(this, 'i18n').t('reports.titles.saved');
-    let alertMessage = get(this, 'i18n').t('reports.messages.saved');
+    let alertTitle = get(this, 'intl').t('reports.titles.saved');
+    let alertMessage = get(this, 'intl').t('reports.messages.saved');
     this.saveVisitIfNeeded(alertTitle, alertMessage);
-    let opdTitle = get(this, 'i18n').t('reports.titles.opdReport');
-    let dischargeTitle = get(this, 'i18n').t('reports.titles.dischargeReport');
+    let opdTitle = get(this, 'intl').t('reports.titles.opdReport');
+    let dischargeTitle = get(this, 'intl').t('reports.titles.dischargeReport');
     let editTitle = get(this, 'model.visit.outPatient') ? opdTitle : dischargeTitle;
     let sectionDetails = {};
     sectionDetails.currentScreenTitle = editTitle;

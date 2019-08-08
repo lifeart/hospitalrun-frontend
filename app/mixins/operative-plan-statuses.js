@@ -1,6 +1,6 @@
-import Ember from 'ember';
-
-const { computed } = Ember;
+import { compare } from '@ember/utils';
+import Mixin from '@ember/object/mixin';
+import { computed } from '@ember/object';
 
 export const COMPLETED_STATUS = 'completed';
 export const DROPPED_STATUS = 'dropped';
@@ -12,17 +12,17 @@ const STATUS_VALUES = [
   PLANNED_STATUS
 ];
 
-export default Ember.Mixin.create({
+export default Mixin.create({
   planStatuses: computed(function() {
-    let i18n = this.get('i18n');
+    let intl = this.get('intl');
 
     return STATUS_VALUES.map((status) => {
       return {
         id: status,
-        value: i18n.t(`operativePlan.labels.${status}Status`)
+        value: intl.t(`operativePlan.labels.${status}Status`)
       };
     }).sort(function(a, b) {
-      return Ember.compare(a.value.toString(), b.value.toString());
+      return compare(a.value.toString(), b.value.toString());
     });
   })
 });

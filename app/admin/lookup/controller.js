@@ -1,79 +1,77 @@
-import Ember from 'ember';
+import { inject as service } from '@ember/service';
+import { alias } from '@ember/object/computed';
+import { on } from '@ember/object/evented';
+import { A } from '@ember/array';
+import ArrayProxy from '@ember/array/proxy';
+import { isEmpty, compare } from '@ember/utils';
+import Controller from '@ember/controller';
+import EmberObject, { get, computed } from '@ember/object';
 import BillingCategories from 'hospitalrun/mixins/billing-categories';
-import csvParse from 'npm:csv-parse';
+import csvParse from 'csv-parse';
 import ModalHelper from 'hospitalrun/mixins/modal-helper';
 import InventoryTypeList from 'hospitalrun/mixins/inventory-type-list';
 import UnitTypes from 'hospitalrun/mixins/unit-types';
 import VisitTypes from 'hospitalrun/mixins/visit-types';
 import { EKMixin, keyDown } from 'ember-keyboard';
 
-const {
-  computed, get, inject
-} = Ember;
-
-export default Ember.Controller.extend(BillingCategories, EKMixin,
+export default Controller.extend(BillingCategories, EKMixin,
   InventoryTypeList, ModalHelper, UnitTypes, VisitTypes, {
-    fileSystem: inject.service('filesystem'),
-    lookupLists: inject.service(),
-
-    canEditValues: computed('model.lookupType', function() {
-      let lookupType = this.get('model.lookupType');
-      return (lookupType !== 'imaging_pricing_types' && lookupType !== 'lab_pricing_types');
-    }),
+    fileSystem: service('filesystem'),
+    lookupLists: service(),
 
     lookupTypes: computed(function() {
       return [{
-        name: this.get('i18n').t('admin.lookup.anesthesiaTypes'),
+        name: this.get('intl').t('admin.lookup.anesthesiaTypes'),
         value: 'anesthesia_types',
         model: {
           procedure: 'anesthesiaType'
         }
       }, {
-        name: this.get('i18n').t('admin.lookup.anesthesiologists'),
+        name: this.get('intl').t('admin.lookup.anesthesiologists'),
         value: 'anesthesiologists',
         model: {
           procedure: 'anesthesiologist'
         }
       }, {
         defaultValues: 'defaultBillingCategories',
-        name: this.get('i18n').t('admin.lookup.billingCategories'),
+        name: this.get('intl').t('admin.lookup.billingCategories'),
         value: 'billing_categories',
         models: {
           'billing-line-item': 'category'
         }
       }, {
-        name: this.get('i18n').t('admin.lookup.clinicList'),
+        name: this.get('intl').t('admin.lookup.clinicList'),
         value: 'clinic_list',
         models: { // Models that use this lookup -- use this later to update models on lookup changes
           patient: 'clinic'
         }
       }, {
-        name: this.get('i18n').t('admin.lookup.countryList'),
+        name: this.get('intl').t('admin.lookup.countryList'),
         value: 'country_list',
         models: {
           patient: 'country'
         }
       }, {
-        name: this.get('i18n').t('admin.lookup.diagnosisList'),
+        name: this.get('intl').t('admin.lookup.diagnosisList'),
         value: 'diagnosis_list',
         models: {
           diagnosis: 'diagnosis'
         }
       }, {
-        name: this.get('i18n').t('admin.lookup.cptCodeList'),
+        name: this.get('intl').t('admin.lookup.cptCodeList'),
         value: 'cpt_code_list',
         models: {
           procedure: 'cptCode'
         }
       }, {
-        name: this.get('i18n').t('admin.lookup.expenseAccountList'),
+        name: this.get('intl').t('admin.lookup.expenseAccountList'),
         value: 'expense_account_list',
         models: {
           'inv-request': 'expenseAccount',
           pricing: 'expenseAccount'
         }
       }, {
-        name: this.get('i18n').t('admin.lookup.aisleLocationList'),
+        name: this.get('intl').t('admin.lookup.aisleLocationList'),
         value: 'aisle_location_list',
         models: {
           inventory: 'aisleLocation',
@@ -85,7 +83,7 @@ export default Ember.Controller.extend(BillingCategories, EKMixin,
           ]
         }
       }, {
-        name: this.get('i18n').t('admin.lookup.warehouseList'),
+        name: this.get('intl').t('admin.lookup.warehouseList'),
         value: 'warehouse_list',
         models: {
           inventory: 'location',
@@ -97,38 +95,26 @@ export default Ember.Controller.extend(BillingCategories, EKMixin,
           ]
         }
       }, {
-        name: this.get('i18n').t('admin.lookup.incidentDepartments'),
+        name: this.get('intl').t('admin.lookup.incidentDepartments'),
         value: 'incident_departments',
         models: {
           incident: 'department'
         }
       }, {
         defaultValues: 'defaultInventoryTypes',
-        name: this.get('i18n').t('admin.lookup.inventoryTypes'),
+        name: this.get('intl').t('admin.lookup.inventoryTypes'),
         value: 'inventory_types',
         models: {
           inventory: 'inventoryType'
         }
       }, {
-        name: this.get('i18n').t('admin.lookup.imagingPricingTypes'),
-        value: 'imaging_pricing_types',
-        models: {
-          pricing: 'pricingType'
-        }
-      }, {
-        name: this.get('i18n').t('admin.lookup.labPricingTypes'),
-        value: 'lab_pricing_types',
-        models: {
-          pricing: 'pricingType'
-        }
-      }, {
-        name: this.get('i18n').t('admin.lookup.patientStatusList'),
+        name: this.get('intl').t('admin.lookup.patientStatusList'),
         value: 'patient_status_list',
         models: {
           patient: 'status'
         }
       }, {
-        name: this.get('i18n').t('admin.lookup.physicianList'),
+        name: this.get('intl').t('admin.lookup.physicianList'),
         value: 'physician_list',
         models: {
           appointment: 'provider',
@@ -139,51 +125,51 @@ export default Ember.Controller.extend(BillingCategories, EKMixin,
           ]
         }
       }, {
-        name: this.get('i18n').t('admin.lookup.procedureList'),
+        name: this.get('intl').t('admin.lookup.procedureList'),
         value: 'procedure_list',
         models: {
           procedure: 'description'
         }
       }, {
-        name: this.get('i18n').t('admin.lookup.procedureLocations'),
+        name: this.get('intl').t('admin.lookup.procedureLocations'),
         value: 'procedure_locations',
         models: {
           procedure: 'location'
         }
       }, {
-        name: this.get('i18n').t('admin.lookup.procedurePricingTypes'),
+        name: this.get('intl').t('admin.lookup.procedurePricingTypes'),
         value: 'procedure_pricing_types',
         models: {
           pricing: 'pricingType'
         }
       }, {
-        name: this.get('i18n').t('admin.lookup.radiologists'),
+        name: this.get('intl').t('admin.lookup.radiologists'),
         value: 'radiologists',
         model: {
           imaging: 'radiologist'
         }
       }, {
-        name: this.get('i18n').t('labels.sex'),
+        name: this.get('intl').t('labels.sex'),
         value: 'sex',
         model: {
           patient: 'sex'
         }
       }, {
         defaultValues: 'defaultUnitList',
-        name: this.get('i18n').t('admin.lookup.unitTypes'),
+        name: this.get('intl').t('admin.lookup.unitTypes'),
         value: 'unit_types',
         models: {
           inventory: 'distributionUnit',
           'inv-purchase': 'distributionUnit'
         }
       }, {
-        name: this.get('i18n').t('admin.lookup.vendorList'),
+        name: this.get('intl').t('admin.lookup.vendorList'),
         value: 'vendor_list',
         models: {
           'inv-purchase': 'vendor'
         }
       }, {
-        name: this.get('i18n').t('admin.lookup.visitLocationList'),
+        name: this.get('intl').t('admin.lookup.visitLocationList'),
         value: 'visit_location_list',
         models: {
           appointment: 'location',
@@ -191,13 +177,13 @@ export default Ember.Controller.extend(BillingCategories, EKMixin,
         }
       }, {
         defaultValues: 'defaultVisitTypes',
-        name: this.get('i18n').t('admin.lookup.visitTypes'),
+        name: this.get('intl').t('admin.lookup.visitTypes'),
         value: 'visit_types',
         models: {
           visit: 'visitType'
         }
       }, {
-        name: this.get('i18n').t('admin.lookup.wardPricingTypes'),
+        name: this.get('intl').t('admin.lookup.wardPricingTypes'),
         value: 'ward_pricing_types',
         models: {
           pricing: 'pricingType'
@@ -205,15 +191,15 @@ export default Ember.Controller.extend(BillingCategories, EKMixin,
       }];
     }),
 
-    importFile: computed.alias('lookupTypeList.importFile'),
+    importFile: alias('lookupTypeList.importFile'),
 
     lookupTitle: computed('model.lookupType', function() {
       let lookupType = this.get('model.lookupType');
       let lookupTypes = this.get('lookupTypes');
       let lookupDesc;
-      if (!Ember.isEmpty(lookupType)) {
+      if (!isEmpty(lookupType)) {
         lookupDesc = lookupTypes.findBy('value', lookupType);
-        if (!Ember.isEmpty(lookupDesc)) {
+        if (!isEmpty(lookupDesc)) {
           return lookupDesc.name;
         }
       }
@@ -222,14 +208,14 @@ export default Ember.Controller.extend(BillingCategories, EKMixin,
     lookupTypeList: computed('model.lookupType', function() {
       let lookupType = this.get('model.lookupType');
       let lookupItem;
-      if (!Ember.isEmpty(lookupType)) {
+      if (!isEmpty(lookupType)) {
         lookupItem = this.get('model').findBy('id', lookupType);
-        if (Ember.isEmpty(lookupItem) || !lookupItem.get('isLoaded')) {
+        if (isEmpty(lookupItem) || !lookupItem.get('isLoaded')) {
           let defaultValues = [];
           let lookupTypes = this.get('lookupTypes');
           let lookupDesc = lookupTypes.findBy('value', lookupType);
           let store = this.get('store');
-          if (!Ember.isEmpty(lookupDesc) && !Ember.isEmpty(lookupDesc.defaultValues)) {
+          if (!isEmpty(lookupDesc) && !isEmpty(lookupDesc.defaultValues)) {
             defaultValues = this.get(lookupDesc.defaultValues);
           }
           lookupItem = store.push(store.normalize('lookup', {
@@ -237,7 +223,7 @@ export default Ember.Controller.extend(BillingCategories, EKMixin,
             value: defaultValues
           }));
         }
-        if (!Ember.isEmpty(lookupItem) && Ember.isEmpty(lookupItem.get('userCanAdd'))) {
+        if (!isEmpty(lookupItem) && isEmpty(lookupItem.get('userCanAdd'))) {
           lookupItem.set('userCanAdd', true);
         }
         return lookupItem;
@@ -247,7 +233,7 @@ export default Ember.Controller.extend(BillingCategories, EKMixin,
     lookupTypeValues: computed('model.lookupType', 'lookupTypeList.value.[]', function() {
       let lookupType = this.get('model.lookupType');
       let values = this.get('lookupTypeList.value');
-      if (!Ember.isEmpty(values)) {
+      if (!isEmpty(values)) {
         values.sort(this._sortValues);
         values = values.map((value) => {
           return {
@@ -256,30 +242,18 @@ export default Ember.Controller.extend(BillingCategories, EKMixin,
           };
         });
       }
-      return Ember.ArrayProxy.create({ content: Ember.A(values) });
+      return ArrayProxy.create({ content: A(values) });
     }),
 
     showOrganizeByType: computed('model.lookupType', function() {
       let lookupType = this.get('model.lookupType');
-      return (!Ember.isEmpty(lookupType) && lookupType.indexOf('pricing_types') > 0);
+      return !isEmpty(lookupType) && lookupType.indexOf('pricing_types') > 0;
     }),
 
     _canModifyValue(value, lookupType) {
       switch (lookupType) {
         case 'inventory_types': {
           if (value === 'Medication') {
-            return false;
-          }
-          break;
-        }
-        case 'lab_pricing_types': {
-          if (value === 'Lab Procedure') {
-            return false;
-          }
-          break;
-        }
-        case 'imaging_pricing_types': {
-          if (value === 'Imaging Procedure') {
             return false;
           }
           break;
@@ -312,9 +286,9 @@ export default Ember.Controller.extend(BillingCategories, EKMixin,
             }
           });
           lookupValues.sort();
-          let i18n = get(this, 'i18n');
-          let message = i18n.t('admin.lookup.alertImportListSaveMessage');
-          let title = i18n.t('admin.lookup.alertImportListSaveTitle');
+          let intl = get(this, 'intl');
+          let message = intl.t('admin.lookup.alertImportListSaveMessage');
+          let title = intl.t('admin.lookup.alertImportListSaveTitle');
           lookupTypeList.save().then(() => {
             let lookupLists = get(this, 'lookupLists');
             lookupLists.resetLookupList(get(lookupTypeList, 'id'));
@@ -327,29 +301,29 @@ export default Ember.Controller.extend(BillingCategories, EKMixin,
     },
 
     _sortValues(a, b) {
-      return Ember.compare(a.toLowerCase(), b.toLowerCase());
+      return compare(a.toLowerCase(), b.toLowerCase());
     },
 
-    activateKeyboard: Ember.on('init', function() {
+    activateKeyboard: on('init', function() {
       this.set('keyboardActivated', true);
     }),
 
-    updateListKeyboard: Ember.on(keyDown('ctrl+KeyS'), keyDown('cmd+KeyS'), function(event) {
+    updateListKeyboard: on(keyDown('ctrl+KeyS'), keyDown('cmd+KeyS'), function(event) {
       this.send('updateList');
       event.preventDefault();
     }),
 
     actions: {
       addValue() {
-        this.send('openModal', 'admin.lookup.edit', Ember.Object.create({
+        this.send('openModal', 'admin.lookup.edit', EmberObject.create({
           isNew: true
         }));
       },
       confirmDeleteValue(value) {
-        let i18n = this.get('i18n');
-        let title = i18n.t('admin.lookup.titles.deleteLookupValue');
-        let message = i18n.t('messages.delete', { name: value });
-        this.displayConfirm(title, message, 'deleteValue', Ember.Object.create({
+        let intl = this.get('intl');
+        let title = intl.t('admin.lookup.titles.deleteLookupValue');
+        let message = intl.t('messages.delete', { name: value });
+        this.displayConfirm(title, message, 'deleteValue', EmberObject.create({
           valueToDelete: value
         }));
       },
@@ -361,8 +335,8 @@ export default Ember.Controller.extend(BillingCategories, EKMixin,
         lookupTypeList.save();
       },
       editValue(value) {
-        if (!Ember.isEmpty(value)) {
-          this.send('openModal', 'admin.lookup.edit', Ember.Object.create({
+        if (!isEmpty(value)) {
+          this.send('openModal', 'admin.lookup.edit', EmberObject.create({
             isNew: false,
             originalValue: value.toString(),
             value: value.toString()
@@ -373,8 +347,8 @@ export default Ember.Controller.extend(BillingCategories, EKMixin,
         let fileToImport = this.get('importFile');
         if (!fileToImport || !fileToImport.type) {
           this.displayAlert(
-            this.get('i18n').t('admin.lookup.alertImportListTitle'),
-            this.get('i18n').t('admin.lookup.alertImportListMessage')
+            this.get('intl').t('admin.lookup.alertImportListTitle'),
+            this.get('intl').t('admin.lookup.alertImportListMessage')
           );
         } else {
           this._importLookupList(fileToImport);
@@ -386,8 +360,8 @@ export default Ember.Controller.extend(BillingCategories, EKMixin,
           let lookupLists = get(this, 'lookupLists');
           lookupLists.resetLookupList(get(lookupTypeList, 'id'));
           this.displayAlert(
-            this.get('i18n').t('admin.lookup.alertImportListUpdateTitle'),
-            this.get('i18n').t('admin.lookup.alertImportListUpdateMessage')
+            this.get('intl').t('admin.lookup.alertImportListUpdateTitle'),
+            this.get('intl').t('admin.lookup.alertImportListUpdateMessage')
           );
         });
       },

@@ -1,12 +1,22 @@
-import { moduleForModel } from 'ember-qunit';
-import { testValidPropertyValues, testInvalidPropertyValues } from '../../helpers/validate-properties';
+import { module } from 'qunit';
+import { setupTest } from 'ember-qunit';
+import { getContext } from '@ember/test-helpers';
+import { run } from '@ember/runloop';
+import {
+  testValidPropertyValues,
+  testInvalidPropertyValues
+} from '../../helpers/validate-properties';
 
-moduleForModel('add-diagnosis', 'Unit | Model | add-diagnosis', {
-  // Specify the other units that are required for this test.
-  needs: [
-    'ember-validations@validator:local/presence'
-  ]
+module('Unit | Model | add-diagnosis', function(hooks) {
+  setupTest(hooks);
+  hooks.beforeEach(function() {
+    let { owner } = getContext();
+
+    this.subject = () => run(() => owner
+      .lookup('service:store')
+      .createRecord('add-diagnosis'));
+  });
+
+  testValidPropertyValues('diagnosis', ['test']);
+  testInvalidPropertyValues('diagnosis', [undefined]);
 });
-
-testValidPropertyValues('diagnosis', ['test']);
-testInvalidPropertyValues('diagnosis', [undefined]);

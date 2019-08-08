@@ -1,5 +1,5 @@
 import AbstractModuleRoute from 'hospitalrun/routes/abstract-module-route';
-import { translationMacro as t } from 'ember-i18n';
+import { t } from 'hospitalrun/macro';
 
 export default AbstractModuleRoute.extend({
   addCapability: 'add_incident',
@@ -10,6 +10,9 @@ export default AbstractModuleRoute.extend({
     name: 'incidentCategoryList',
     findArgs: ['inc-category']
   }],
+  allowSearch: false,
+  editTitle: t('incidents.titles.editIncident'),
+  newTitle: t('incidents.titles.newIncident'),
   moduleName: 'incident',
   newButtonText: t('incident.buttons.newIncident'),
   sectionTitle: t('incident.titles.incidents')

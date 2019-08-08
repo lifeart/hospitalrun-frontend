@@ -1,12 +1,17 @@
-import { moduleFor, test } from 'ember-qunit';
+import { module, test } from 'qunit';
+import { setupTest } from 'ember-qunit';
 
-moduleFor('service:config', 'Unit | Service | config', {
-  // Specify the other units that are required for this test.
-  // needs: ['service:foo']
-});
+module('Unit | Service | config', function(hooks) {
+  setupTest(hooks);
 
-// Replace this with your real tests.
-test('it exists', function(assert) {
-  let service = this.subject();
-  assert.ok(service);
+  test('getCurrentUser returns user from the session', function(assert) {
+    let service = this.owner.lookup('service:config');
+
+    let user = { name: 'name' };
+    service.get('session').set('data', {
+      authenticated: user
+    });
+
+    assert.equal(service.getCurrentUser(), user);
+  });
 });

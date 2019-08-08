@@ -1,10 +1,33 @@
+import { isEmpty } from '@ember/utils';
+import { computed } from '@ember/object';
 import AbstractModel from 'hospitalrun/models/abstract';
 import DS from 'ember-data';
-import Ember from 'ember';
 import moment from 'moment';
 import PatientValidation from 'hospitalrun/utils/patient-validation';
 
-const { computed } = Ember;
+function dateAcceptance(object) {
+  if (!object.get('hasDirtyAttributes')) {
+    return false;
+  }
+  let allDay = object.get('allDay');
+  let startDate = object.get('startDate');
+  let endDate = object.get('endDate');
+  if (isEmpty(endDate) || isEmpty(startDate)) {
+    // force validation to fail
+    return true;
+  } else {
+    if (allDay) {
+      if (endDate.getTime() < startDate.getTime()) {
+        return true;
+      }
+    } else {
+      if (endDate.getTime() <= startDate.getTime()) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
 
 export default AbstractModel.extend({
   // Attributes
@@ -39,7 +62,7 @@ export default AbstractModel.extend({
 
   displayStatus: computed('status', function() {
     let status = this.get('status');
-    if (Ember.isEmpty(status)) {
+    if (isEmpty(status)) {
       status = 'Scheduled';
     }
     return status;
@@ -88,36 +111,16 @@ export default AbstractModel.extend({
       presence: true
     },
     startDate: {
-      presence: true
+      acceptance: {
+        accept: true,
+        if: dateAcceptance,
+        message: 'Please select a start date earlier than the end date'
+      }
     },
     endDate: {
       acceptance: {
         accept: true,
-        if(object) {
-          if (!object.get('hasDirtyAttributes')) {
-            return false;
-          }
-          let allDay = object.get('allDay');
-          let startDate = object.get('startDate');
-          let endDate = object.get('endDate');
-          if (Ember.isEmpty(endDate) || Ember.isEmpty(startDate)) {
-            // force validation to fail
-            return true;
-          } else {
-            if (allDay) {
-              if (endDate.getTime() < startDate.getTime()) {
-                return true;
-              }
-            } else {
-              if (endDate.getTime() <= startDate.getTime()) {
-                return true;
-              }
-            }
-          }
-          // patient is properly selected; don't do any further validation
-          return false;
-
-        },
+        if: dateAcceptance,
         message: 'Please select an end date later than the start date'
       }
     }

@@ -1,24 +1,27 @@
+import { Promise as EmberPromise } from 'rsvp';
+import { alias } from '@ember/object/computed';
+import { inject as controller } from '@ember/controller';
 import AbstractEditController from 'hospitalrun/controllers/abstract-edit-controller';
-import Ember from 'ember';
 import UnitTypes from 'hospitalrun/mixins/unit-types';
+import { computed } from '@ember/object';
 
 export default AbstractEditController.extend(UnitTypes, {
-  inventoryController: Ember.inject.controller('inventory'),
+  inventoryController: controller('inventory'),
   cancelAction: 'closeModal',
 
-  canEditQuantity: function() {
+  canEditQuantity: computed('model.currentQuantity', 'model.originalQuantity', function() {
     let originalQuantity = this.get('model.originalQuantity');
     let currentQuantity = this.get('model.currentQuantity');
     if (currentQuantity < originalQuantity) {
       return false;
     }
     return true;
-  }.property('model.currentQuantity', 'model.originalQuantity'),
+  }),
 
-  warehouseList: Ember.computed.alias('inventoryController.warehouseList'),
-  aisleLocationList: Ember.computed.alias('inventoryController.aisleLocationList'),
-  inventoryUnitList: Ember.computed.alias('inventoryController.inventoryUnitList.value'),
-  vendorList: Ember.computed.alias('inventoryController.vendorList'),
+  warehouseList: alias('inventoryController.warehouseList'),
+  aisleLocationList: alias('inventoryController.aisleLocationList'),
+  inventoryUnitList: alias('inventoryController.inventoryUnitList.value'),
+  vendorList: alias('inventoryController.vendorList'),
 
   lookupListsToUpdate: [{
     name: 'aisleLocationList', // Name of property containing lookup list
@@ -40,14 +43,14 @@ export default AbstractEditController.extend(UnitTypes, {
 
   updateCapability: 'add_inventory_purchase',
 
-  title: function() {
-    let i18n = this.get('i18n');
+  title: computed('model.isNew', function() {
+    let intl = this.get('intl');
     let isNew = this.get('model.isNew');
     if (isNew) {
-      return i18n.t('inventory.titles.addPurchase');
+      return intl.t('inventory.titles.addPurchase');
     }
-    return i18n.t('inventory.titles.editPurchase');
-  }.property('model.isNew'),
+    return intl.t('inventory.titles.editPurchase');
+  }),
 
   beforeUpdate() {
     let isNew = this.get('model.isNew');
@@ -61,7 +64,7 @@ export default AbstractEditController.extend(UnitTypes, {
     if (isNew) {
       this.set('newPurchase', true);
     }
-    return Ember.RSVP.Promise.resolve();
+    return EmberPromise.resolve();
   },
 
   afterUpdate(record) {

@@ -1,41 +1,45 @@
-import Ember from 'ember';
+import { inject as service } from '@ember/service';
+import { isArray, A } from '@ember/array';
+import Controller from '@ember/controller';
+import { isEmpty } from '@ember/utils';
+import RSVP, { Promise as EmberPromise } from 'rsvp';
+import { set, get, computed } from '@ember/object';
 import EditPanelProps from 'hospitalrun/mixins/edit-panel-props';
 import IsUpdateDisabled from 'hospitalrun/mixins/is-update-disabled';
 import ModalHelper from 'hospitalrun/mixins/modal-helper';
 import { task } from 'ember-concurrency';
 import UserSession from 'hospitalrun/mixins/user-session';
 
-const { get, inject, isEmpty, RSVP, set } = Ember;
-
-export default Ember.Controller.extend(EditPanelProps, IsUpdateDisabled, ModalHelper, UserSession, {
+export default Controller.extend(EditPanelProps, IsUpdateDisabled, ModalHelper, UserSession, {
   cancelAction: 'allItems',
 
-  cancelButtonText: function() {
-    let i18n = get(this, 'i18n');
+  cancelButtonText: computed('model.hasDirtyAttributes', function() {
+    let intl = get(this, 'intl');
     let hasDirtyAttributes = get(this, 'model.hasDirtyAttributes');
-    if (hasDirtyAttributes) {
-      return i18n.t('buttons.cancel');
-    } else {
-      return i18n.t('buttons.returnButton');
-    }
-  }.property('model.hasDirtyAttributes'),
 
-  disabledAction: function() {
+    if (hasDirtyAttributes) {
+      return intl.t('buttons.cancel');
+    } else {
+      return intl.t('buttons.returnButton');
+    }
+  }),
+
+  disabledAction: computed('model.isValid', function() {
     let model = get(this, 'model');
     if (model.validate) {
-      model.validate().catch(Ember.K);
+      model.validate().catch(function() {});
     }
     let isValid = model.get('isValid');
     if (!isValid) {
       return 'showDisabledDialog';
     }
-  }.property('model.isValid'),
+  }),
 
-  isNewOrDeleted: function() {
+  isNewOrDeleted: computed('model.isNew', 'model.isDeleted', function() {
     return get(this, 'model.isNew') || get(this, 'model.isDeleted');
-  }.property('model.isNew', 'model.isDeleted'),
+  }),
 
-  lookupLists: inject.service(),
+  lookupLists: service(),
   /**
    *  Lookup lists that should be updated when the model has a new value to add to the lookup list.
    *  lookupListsToUpdate: [{
@@ -47,20 +51,20 @@ export default Ember.Controller.extend(EditPanelProps, IsUpdateDisabled, ModalHe
   lookupListsLastUpdate: null,
   lookupListsToUpdate: null,
 
-  showUpdateButton: function() {
+  showUpdateButton: computed('updateCapability', function() {
     let updateButtonCapability = get(this, 'updateCapability');
     return this.currentUserCan(updateButtonCapability);
-  }.property('updateCapability'),
+  }),
 
   updateButtonAction: 'update',
-  updateButtonText: function() {
-    let i18n = get(this, 'i18n');
+  updateButtonText: computed('model.isNew', function() {
+    let intl = get(this, 'intl');
     if (get(this, 'model.isNew')) {
-      return i18n.t('buttons.add');
+      return intl.t('buttons.add');
     } else {
-      return i18n.t('buttons.update');
+      return intl.t('buttons.update');
     }
-  }.property('model.isNew'),
+  }),
   updateCapability: null,
 
   /* Silently update and then fire the specified action. */
@@ -96,7 +100,7 @@ export default Ember.Controller.extend(EditPanelProps, IsUpdateDisabled, ModalHe
    */
   _addValueToLookupList(lookupList, value, listsToUpdate, listName) {
     let lookupListValues = lookupList.get('value');
-    if (!Ember.isArray(lookupListValues)) {
+    if (!isArray(lookupListValues)) {
       lookupListValues = [];
     }
     if (!lookupListValues.includes(value)) {
@@ -117,14 +121,14 @@ export default Ember.Controller.extend(EditPanelProps, IsUpdateDisabled, ModalHe
 
   _handleError(err) {
     if (!err.ignore) {
-      let i18n = get(this, 'i18n');
+      let intl = get(this, 'intl');
       let errorDetails = err;
       if (!errorDetails.message) {
         errorDetails.message =  err.toString();
       }
       this.displayAlert(
-        i18n.t('alerts.errorExclamation'),
-        i18n.t('messages.saveActionException', errorDetails)
+        intl.t('alerts.errorExclamation'),
+        intl.t('messages.saveActionException', errorDetails)
       );
     }
   },
@@ -147,10 +151,10 @@ export default Ember.Controller.extend(EditPanelProps, IsUpdateDisabled, ModalHe
     },
 
     showDisabledDialog() {
-      let i18n = get(this, 'i18n');
+      let intl = get(this, 'intl');
       this.displayAlert(
-        i18n.t('alerts.warningExclamation'),
-        i18n.t('messages.requiredFieldsCorrectErrors')
+        intl.t('alerts.warningExclamation'),
+        intl.t('messages.requiredFieldsCorrectErrors')
       );
     },
 
@@ -175,7 +179,7 @@ export default Ember.Controller.extend(EditPanelProps, IsUpdateDisabled, ModalHe
    * @returns {Promise} Promise that resolves after before update is done.
    */
   beforeUpdate() {
-    return Ember.RSVP.Promise.resolve();
+    return EmberPromise.resolve();
   },
 
   /**
@@ -200,7 +204,7 @@ export default Ember.Controller.extend(EditPanelProps, IsUpdateDisabled, ModalHe
    */
   updateLookupLists() {
     let lookupListsToUpdate = get(this, 'lookupListsToUpdate');
-    let listsToUpdate = Ember.A();
+    let listsToUpdate = A();
     let lookupPromises = [];
     if (!isEmpty(lookupListsToUpdate)) {
       lookupListsToUpdate.forEach((list) => {
@@ -242,7 +246,7 @@ export default Ember.Controller.extend(EditPanelProps, IsUpdateDisabled, ModalHe
         userCanAdd: true
       }));
     }
-    if (Ember.isArray(propertyValue)) {
+    if (isArray(propertyValue)) {
       propertyValue.forEach(function(value) {
         this._addValueToLookupList(lookupList, value, listsToUpdate, listInfo.name);
       }.bind(this));

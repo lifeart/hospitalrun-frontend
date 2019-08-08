@@ -1,8 +1,11 @@
-import Ember from 'ember';
-export default Ember.Mixin.create({
+import { isEmpty } from '@ember/utils';
+import Mixin from '@ember/object/mixin';
+import { computed } from '@ember/object';
+
+export default Mixin.create({
   getDisplayLocationName(location, aisleLocation) {
     let locationName = this.formatLocationName(location, aisleLocation);
-    if (Ember.isEmpty(locationName)) {
+    if (isEmpty(locationName)) {
       locationName = 'No Location';
     }
     return locationName;
@@ -10,21 +13,21 @@ export default Ember.Mixin.create({
 
   formatLocationName(location, aisleLocation) {
     let locationName = '';
-    if (!Ember.isEmpty(location)) {
+    if (!isEmpty(location)) {
       locationName += location;
-      if (!Ember.isEmpty(aisleLocation)) {
+      if (!isEmpty(aisleLocation)) {
         locationName += ' : ';
       }
     }
-    if (!Ember.isEmpty(aisleLocation)) {
+    if (!isEmpty(aisleLocation)) {
       locationName += aisleLocation;
     }
     return locationName;
   },
 
-  locationName: function() {
+  locationName: computed('location', 'aisleLocation', function() {
     let aisleLocation = this.get('aisleLocation');
     let location = this.get('location');
     return this.getDisplayLocationName(location, aisleLocation);
-  }.property('location', 'aisleLocation')
+  })
 });

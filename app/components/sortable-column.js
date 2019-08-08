@@ -1,5 +1,8 @@
-import Ember from 'ember';
-export default Ember.Component.extend({
+import { isEmpty } from '@ember/utils';
+import { computed } from '@ember/object';
+import Component from '@ember/component';
+
+export default Component.extend({
   classNames: ['sortable-column'],
   tagName: 'th',
   action: 'sortByKey',
@@ -12,11 +15,11 @@ export default Ember.Component.extend({
   sortKey: null,
   filtered: false,
 
-  sorted: function() {
+  sorted: computed('sortBy', 'sortKey', function() {
     let sortBy = this.get('sortBy');
     let sortKey = this.get('sortKey');
     return sortBy === sortKey;
-  }.property('sortBy', 'sortKey'),
+  }),
 
   actions: {
     sort() {
@@ -30,7 +33,7 @@ export default Ember.Component.extend({
     },
 
     filter(filterValue) {
-      if (Ember.isEmpty(filterValue)) {
+      if (isEmpty(filterValue)) {
         this.set('filtered');
       } else {
         this.set('filtered', true);

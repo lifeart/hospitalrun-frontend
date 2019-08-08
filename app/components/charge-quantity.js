@@ -1,6 +1,11 @@
-import Ember from 'ember';
-export default Ember.Component.extend({
-  i18n: Ember.inject.service(),
+import { isEmpty } from '@ember/utils';
+import { alias } from '@ember/object/computed';
+import { inject as service } from '@ember/service';
+import Component from '@ember/component';
+import { computed } from '@ember/object';
+
+export default Component.extend({
+  intl: service(),
   classNames: ['col-xs-2', 'form-group'],
   classNameBindings: ['hasError'],
   tagName: 'td',
@@ -8,18 +13,17 @@ export default Ember.Component.extend({
 
   didReceiveAttrs(/* attrs */) {
     this._super(...arguments);
-    this.quantitySelected = Ember.computed.alias(`model.${this.get('pricingItem.id')}`);
+    this.quantitySelected = alias(`model.${this.get('pricingItem.id')}`);
   },
 
-  hasError: function() {
+  hasError: computed('quantitySelected', function() {
     let quantitySelected = this.get('quantitySelected');
-    return (!Ember.isEmpty(quantitySelected) && isNaN(quantitySelected));
-  }.property('quantitySelected'),
+    return !isEmpty(quantitySelected) && isNaN(quantitySelected);
+  }),
 
-  quantityHelp: function() {
+  quantityHelp: computed('hasError', function() {
     if (this.get('hasError')) {
-      return this.get('i18n').t('errors.invalidNumber');
+      return this.get('intl').t('errors.invalidNumber');
     }
-  }.property('hasError')
-
+  })
 });

@@ -1,249 +1,281 @@
-import Ember from 'ember';
+import {
+  click,
+  fillIn,
+  currentURL,
+  visit,
+  waitUntil
+} from '@ember/test-helpers';
 import { module, test } from 'qunit';
-import startApp from 'hospitalrun/tests/helpers/start-app';
+import jquerySelect from 'hospitalrun/tests/helpers/deprecated-jquery-select';
+import jqueryLength from 'hospitalrun/tests/helpers/deprecated-jquery-length';
+import { setupApplicationTest } from 'ember-qunit';
+import runWithPouchDump from 'hospitalrun/tests/helpers/run-with-pouch-dump';
+import select from 'hospitalrun/tests/helpers/select';
+import { waitToAppear, waitToDisappear } from 'hospitalrun/tests/helpers/wait-to-appear';
+import { authenticateUser } from 'hospitalrun/tests/helpers/authenticate-user';
 
 function verifyPricingLists(path, includesPrices, excludesPrices, assert) {
-  runWithPouchDump('billing', function() {
-    authenticateUser();
-    visit(path);
-    andThen(function() {
-      assert.equal(currentURL(), path);
-      includesPrices.forEach(function(priceName) {
-        assert.equal(find(`.price-name:contains(${priceName})`).length, 1, `${priceName} displays`);
-      });
-      excludesPrices.forEach(function(priceName) {
-        assert.equal(find(`.price-name:contains(${priceName})`).length, 0, `${priceName} is not present`);
-      });
-
+  return runWithPouchDump('billing', async function() {
+    await authenticateUser();
+    await visit(path);
+    assert.equal(currentURL(), path);
+    includesPrices.forEach(function(priceName) {
+      assert.equal(jqueryLength(`.price-name:contains(${priceName})`), 1, `${priceName} displays`);
+    });
+    excludesPrices.forEach(function(priceName) {
+      assert.equal(jqueryLength(`.price-name:contains(${priceName})`), 0, `${priceName} is not present`);
     });
   });
 }
 
-module('Acceptance | pricing', {
-  beforeEach() {
-    this.application = startApp();
-  },
+module('Acceptance | pricing', function(hooks) {
+  setupApplicationTest(hooks);
 
-  afterEach() {
-    Ember.run(this.application, 'destroy');
-  }
-});
+  test('visiting /pricing', function(assert) {
+    let includesPrices = [
+      'Xray Hand',
+      'Blood test',
+      'Leg Casting',
+      'Gauze pad'
+    ];
+    return verifyPricingLists('/pricing', includesPrices, [], assert);
+  });
 
-test('visiting /pricing', function(assert) {
-  let includesPrices = [
-    'Xray Hand',
-    'Blood test',
-    'Leg Casting',
-    'Gauze pad'
-  ];
-  verifyPricingLists('/pricing', includesPrices, [], assert);
-});
+  test('visiting /pricing/imaging', function(assert) {
+    let excludesPrices = [
+      'Blood test',
+      'Leg Casting',
+      'Gauze pad'
+    ];
+    let includesPrices = [
+      'Xray Hand'
+    ];
+    return verifyPricingLists('/pricing/imaging', includesPrices, excludesPrices, assert);
 
-test('visiting /pricing/imaging', function(assert) {
-  let excludesPrices = [
-    'Blood test',
-    'Leg Casting',
-    'Gauze pad'
-  ];
-  let includesPrices = [
-    'Xray Hand'
-  ];
-  verifyPricingLists('/pricing/imaging', includesPrices, excludesPrices, assert);
+  });
 
-});
+  test('visiting /pricing/lab', function(assert) {
+    let excludesPrices = [
+      'Xray Hand',
+      'Leg Casting',
+      'Gauze pad'
+    ];
+    let includesPrices = [
+      'Blood test'
+    ];
+    return verifyPricingLists('/pricing/lab', includesPrices, excludesPrices, assert);
+  });
 
-test('visiting /pricing/lab', function(assert) {
-  let excludesPrices = [
-    'Xray Hand',
-    'Leg Casting',
-    'Gauze pad'
-  ];
-  let includesPrices = [
-    'Blood test'
-  ];
-  verifyPricingLists('/pricing/lab', includesPrices, excludesPrices, assert);
-});
+  test('visiting /pricing/procedure', function(assert) {
+    let excludesPrices = [
+      'Xray Hand',
+      'Blood test',
+      'Gauze pad'
+    ];
+    let includesPrices = [
+      'Leg Casting'
+    ];
+    return verifyPricingLists('/pricing/procedure', includesPrices, excludesPrices, assert);
+  });
 
-test('visiting /pricing/procedure', function(assert) {
-  let excludesPrices = [
-    'Xray Hand',
-    'Blood test',
-    'Gauze pad'
-  ];
-  let includesPrices = [
-    'Leg Casting'
-  ];
-  verifyPricingLists('/pricing/procedure', includesPrices, excludesPrices, assert);
-});
+  test('visiting /pricing/ward', function(assert) {
+    let excludesPrices = [
+      'Xray Hand',
+      'Blood test',
+      'Leg Casting'
+    ];
+    let includesPrices = [
+      'Gauze pad'
+    ];
+    return verifyPricingLists('/pricing/ward', includesPrices, excludesPrices, assert);
+  });
 
-test('visiting /pricing/ward', function(assert) {
-  let excludesPrices = [
-    'Xray Hand',
-    'Blood test',
-    'Leg Casting'
-  ];
-  let includesPrices = [
-    'Gauze pad'
-  ];
-  verifyPricingLists('/pricing/ward', includesPrices, excludesPrices, assert);
-});
-
-test('create new price', function(assert) {
-  runWithPouchDump('billing', function() {
-    authenticateUser();
-    visit('/pricing/edit/new');
-    andThen(function() {
+  test('create new price', function(assert) {
+    return runWithPouchDump('billing', async function() {
+      await authenticateUser();
+      await visit('/pricing');
+      await click(jquerySelect('button:contains(+ new item)'));
       assert.equal(currentURL(), '/pricing/edit/new');
-      fillIn('.price-name input', 'Xray Foot');
-      fillIn('.price-amount input', 100);
-      fillIn('.price-department input', 'Imaging');
-      select('.price-category', 'Imaging');
-      click('button:contains(Add):last');
-      waitToAppear('.modal-dialog');
-      andThen(() => {
-        assert.equal(find('.modal-title').text(), 'Pricing Item Saved', 'Pricing Item saved');
-        click('button:contains(Ok)');
-      });
-      andThen(() => {
-        click('button:contains(Add Override)');
-        waitToAppear('.modal-dialog');
-      });
-      andThen(() => {
-        assert.equal(find('.modal-title').text(), 'Add Override', 'Add Override Dialog displays');
-        select('.pricing-profile', 'Half off');
-        fillIn('.pricing-override-price input', 20);
-      });
-      andThen(() => {
-        click('button:contains(Add):last');
-        waitToAppear('.override-profile');
-      });
-      andThen(() => {
-        assert.equal(find('.override-profile').text(), 'Half off', 'Pricing override saved');
-      });
+
+      await fillIn('.price-name input', 'Xray Foot');
+      await fillIn('.price-amount input', 100);
+      await fillIn('.price-department input', 'Imaging');
+      await select('.price-category', 'Imaging');
+      await click(jquerySelect('button:contains(Add):last'));
+      await waitToAppear('.modal-dialog');
+      assert.dom('.modal-title').hasText('Pricing Item Saved', 'Pricing Item saved');
+
+      await click(jquerySelect('button:contains(Ok)'));
+      await click(jquerySelect('button:contains(Add Override)'));
+      await waitToAppear('.modal-dialog');
+      assert.dom('.modal-title').hasText('Add Override', 'Add Override Dialog displays');
+
+      await select('.pricing-profile', 'Half off');
+      await fillIn('.pricing-override-price input', 20);
+      await click(jquerySelect('button:contains(Add):last'));
+      await waitToAppear('.override-profile');
+      assert.dom('.override-profile').hasText('Half off', 'Pricing override saved');
+
+      await click(jquerySelect('button:contains(Delete)'));
+      await waitToAppear('.modal-dialog');
+      await click(jquerySelect('button:contains(Ok)'));
+      assert.dom('.override-profile').doesNotExist('Pricing override deleted');
     });
   });
-});
 
-test('delete price', function(assert) {
-  runWithPouchDump('billing', function() {
-    authenticateUser();
-    visit('/pricing/lab');
-    andThen(function() {
+  test('verify behavior of Category control and Pricing Type field', function(assert) {
+    return runWithPouchDump('default', async function() {
+
+      // go to /pricing/lab, add item and confirm Pricing Type is 'Lab Procedure' (bug fixed in PR #1526)
+      await authenticateUser();
+      await visit('/pricing/lab');
+      await click(jquerySelect('button:contains(+ new item)'));
+      assert.equal(currentURL(), '/pricing/edit/newLab');
+      await fillIn('.price-name input', 'Test Lab Item');
+      await fillIn('.price-amount input', 10);
+      await fillIn('.price-department input', 'Test Expense Acct');
+      await click(jquerySelect('button:contains(Add):last'));
+
+      await waitToAppear('.modal-dialog');
+      assert.dom('.modal-title').hasText('Pricing Item Saved', 'Pricing Item saved');
+      await click(jquerySelect('button:contains(Return)'));
+
+      await waitUntil(() => currentURL() === '/pricing');
+
+      assert.dom('td:nth-child(4)').hasText('Lab Procedure');
+
+      await click(jquerySelect('button:contains(Delete)'));
+      await waitToAppear('.modal-dialog');
+      await click(jquerySelect('button:contains(Delete):last'));
+
+      // test that changing Category sets proper Pricing Type depending on which Category selected
+      await visit('/pricing/ward');
+      await click(jquerySelect('button:contains(+ new item)'));
+      assert.equal(currentURL(), '/pricing/edit/newWard');
+
+      await fillIn('.price-name input', 'Test Ward Item');
+      await fillIn('.price-amount input', 10);
+      await fillIn('.price-department input', 'Test Expense Acct');
+
+      await fillIn('.price-type input', 'fake price type');
+      await select('.price-category', 'Procedure');
+      assert.dom('.price-type input').hasText('', 'Changing Category to "Procedure" sets Pricing Type to ""');
+
+      await select('.price-category', 'Imaging');
+      await click(jquerySelect('button:contains(Add):last'));
+
+      await waitToAppear('.modal-dialog');
+      assert.dom('.modal-title').hasText('Pricing Item Saved', 'Pricing Item saved');
+      await click(jquerySelect('button:contains(Return)'));
+
+      await waitUntil(() => currentURL() === '/pricing');
+
+      assert.dom('td:nth-child(4)').hasText('Imaging Procedure');
+    });
+  });
+
+  test('delete price', function(assert) {
+    return runWithPouchDump('billing', async function() {
+      await authenticateUser();
+      await visit('/pricing/lab');
       assert.equal(currentURL(), '/pricing/lab');
-      assert.equal(find('.price-name:contains(Blood test)').length, 1, 'Price exists to delete');
-      click('button:contains(Delete)');
-    });
-    waitToAppear('.modal-dialog');
-    andThen(() => {
-      assert.equal(find('.alert').text().trim(), 'Are you sure you wish to delete Blood test?', 'Pricing item is displayed for deletion');
-    });
-    click('button:contains(Delete):last');
-    waitToDisappear('.price-name:contains(Blood test)');
-    andThen(() => {
-      assert.equal(find('.price-name:contains(Blood test)').length, 0, 'Price disappears from price list');
+      assert.equal(jqueryLength('.price-name:contains(Blood test)'), 1, 'Price exists to delete');
+
+      await click(jquerySelect('button:contains(Delete)'));
+      await waitToAppear('.modal-dialog');
+      assert.dom('.alert').hasText(
+        'Are you sure you wish to delete Blood test?',
+        'Pricing item is displayed for deletion'
+      );
+
+      await click(jquerySelect('button:contains(Delete):last'));
+      await waitToDisappear('.price-name:contains(Blood test)');
+      assert.equal(jqueryLength('.price-name:contains(Blood test)'), 0, 'Price disappears from price list');
     });
   });
-});
 
-test('create new pricing profile', function(assert) {
-  runWithPouchDump('billing', function() {
-    authenticateUser();
-    visit('/pricing/profiles');
-    andThen(function() {
+  test('create new pricing profile', function(assert) {
+    return runWithPouchDump('billing', async function() {
+      await authenticateUser();
+      await visit('/pricing/profiles');
       assert.equal(currentURL(), '/pricing/profiles');
-      click('button:contains(+ new item)');
-      waitToAppear('.modal-dialog');
-      andThen(() => {
-        assert.equal(find('.modal-title').text(), 'New Pricing Profile', 'New Pricing Profile modal appears');
-      });
-      fillIn('.pricing-profile-name input', 'Quarter Off');
-      fillIn('.pricing-profile-percentage input', 25);
-      fillIn('.pricing-profile-discount input', 10);
-      andThen(() => {
-        click('button:contains(Add)');
-      });
-      waitToAppear('.modal-title:contains(Pricing Profile Saved)');
-      click('button:contains(Ok)');
-      waitToAppear('.pricing-profile-name:contains(Quarter Off)');
-      andThen(() => {
-        assert.equal(find('.pricing-profile-name:contains(Quarter Off)').text(), 'Quarter Off', 'New price profile displays');
-      });
+
+      await click(jquerySelect('button:contains(+ new item)'));
+      await waitToAppear('.modal-dialog');
+      assert.dom('.modal-title').hasText('New Pricing Profile', 'New Pricing Profile modal appears');
+
+      await fillIn('.pricing-profile-name input', 'Quarter Off');
+      await fillIn('.pricing-profile-percentage input', 25);
+      await fillIn('.pricing-profile-discount input', 10);
+      await click(jquerySelect('button:contains(Add)'));
+      await waitToAppear('.modal-title:contains(Pricing Profile Saved)');
+      await click(jquerySelect('button:contains(Ok)'));
+      await waitToAppear('.pricing-profile-name:contains(Quarter Off)');
+
+      assert.equal(
+        jquerySelect('.pricing-profile-name:contains(Quarter Off)').textContent.trim(),
+        'Quarter Off',
+        'New price profile displays'
+      );
     });
   });
-});
 
-test('delete pricing profile', function(assert) {
-  runWithPouchDump('billing', function() {
-    authenticateUser();
-    visit('/pricing/profiles');
-    andThen(function() {
+  test('delete pricing profile', function(assert) {
+    return runWithPouchDump('billing', async function() {
+      await authenticateUser();
+      await visit('/pricing/profiles');
       assert.equal(currentURL(), '/pricing/profiles');
-      assert.equal(find('.pricing-profile-name:contains(Half off)').length, 1, 'Pricing profile exists to delete');
-      click('button:contains(Delete)');
-    });
-    waitToAppear('.modal-dialog');
-    andThen(() => {
-      assert.equal(find('.modal-title').text().trim(), 'Delete Profile', 'Pricing Profile delete confirmation is displayed');
-    });
-    click('button:contains(Ok)');
-    waitToDisappear('.pricing-profile-name:contains(Half off)');
-    andThen(() => {
-      assert.equal(find('.pricing-profile-name:contains(Half off)').length, 0, 'Pricing profile disappears from list');
+      assert.equal(jqueryLength('.pricing-profile-name:contains(Half off)'), 1, 'Pricing profile exists to delete');
+
+      await click(jquerySelect('button:contains(Delete)'));
+      await waitToAppear('.modal-dialog');
+      assert.dom('.modal-title').hasText('Delete Profile', 'Pricing Profile delete confirmation is displayed');
+
+      await click(jquerySelect('button:contains(Ok)'));
+      await waitToDisappear('.pricing-profile-name:contains(Half off)');
+      assert.equal(jqueryLength('.pricing-profile-name:contains(Half off)'), 0, 'Pricing profile disappears from list');
     });
   });
-});
 
-test('Searching pricing', function(assert) {
-  runWithPouchDump('billing', function() {
-    authenticateUser();
-    visit('/pricing');
+  test('Searching pricing', function(assert) {
+    return runWithPouchDump('billing', async function() {
+      await authenticateUser();
+      await visit('/pricing');
 
-    fillIn('[role="search"] div input', 'Xray Hand');
-    click('.glyphicon-search');
-
-    andThen(() => {
+      await fillIn('[role="search"] div input', 'Xray Hand');
+      await click('.glyphicon-search');
       assert.equal(currentURL(), '/pricing/search/Xray%20Hand', 'Searched for Name: Xray Hand');
-      assert.equal(find('button:contains(Delete)').length, 3, 'There are 3 search items');
-    });
+      assert.equal(jqueryLength('button:contains(Delete)'), 1, 'There is one search item');
 
-    fillIn('[role="search"] div input', 'Blood');
-    click('.glyphicon-search');
-
-    andThen(() => {
+      await fillIn('[role="search"] div input', 'Blood');
+      await click('.glyphicon-search');
       assert.equal(currentURL(), '/pricing/search/Blood', 'Searched for Name: Blood');
-      assert.equal(find('button:contains(Delete)').length, 1, 'There is one search item');
-    });
+      assert.equal(jqueryLength('button:contains(Delete)'), 1, 'There is one search item');
 
-    fillIn('[role="search"] div input', 'Leg');
-    click('.glyphicon-search');
-
-    andThen(() => {
+      await fillIn('[role="search"] div input', 'Leg');
+      await click('.glyphicon-search');
       assert.equal(currentURL(), '/pricing/search/Leg', 'Searched for Name: Leg');
-      assert.equal(find('button:contains(Delete)').length, 2, 'There are 2 search items');
-    });
+      assert.equal(jqueryLength('button:contains(Delete)'), 1, 'There is one search item');
 
-    fillIn('[role="search"] div input', 'Gauze');
-    click('.glyphicon-search');
-
-    andThen(() => {
+      await fillIn('[role="search"] div input', 'Gauze');
+      await click('.glyphicon-search');
       assert.equal(currentURL(), '/pricing/search/Gauze', 'Searched for Name: Gauze');
-      assert.equal(find('button:contains(Delete)').length, 2, 'There are 2 search items');
-    });
+      assert.equal(jqueryLength('button:contains(Delete)'), 1, 'There is one search item');
 
-    fillIn('[role="search"] div input', 'xray');
-    click('.glyphicon-search');
-
-    andThen(() => {
+      await fillIn('[role="search"] div input', 'xray');
+      await click('.glyphicon-search');
       assert.equal(currentURL(), '/pricing/search/xray', 'Searched for all lower case xray');
-      assert.equal(find('button:contains(Delete)').length, 3, 'There is one search item');
-    });
+      assert.equal(jqueryLength('button:contains(Delete)'), 1, 'There is one search item');
 
-    fillIn('[role="search"] div input', 'ItemNotFound');
-    click('.glyphicon-search');
+      await fillIn('[role="search"] div input', 'd');
+      await click('.glyphicon-search');
+      assert.equal(currentURL(), '/pricing/search/d', 'Searched for the letter d');
+      assert.equal(jqueryLength('button:contains(Delete)'), 3, 'There are three search items');
 
-    andThen(() => {
+      await fillIn('[role="search"] div input', 'ItemNotFound');
+      await click('.glyphicon-search');
       assert.equal(currentURL(), '/pricing/search/ItemNotFound', 'Searched for ItemNotFound');
-      assert.equal(find('.clickable').length, 0, 'There is no search result');
+      assert.dom('.clickable').doesNotExist('There is no search result');
     });
   });
 });

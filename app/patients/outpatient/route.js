@@ -1,16 +1,13 @@
+import { inject as service } from '@ember/service';
+import { computed } from '@ember/object';
+import { isEmpty } from '@ember/utils';
 import AbstractIndexRoute from 'hospitalrun/routes/abstract-index-route';
 import DateFormat from 'hospitalrun/mixins/date-format';
-import Ember from 'ember';
 import moment from 'moment';
-import { translationMacro as t } from 'ember-i18n';
-
-const {
-  computed,
-  isEmpty
-} = Ember;
+import { t } from 'hospitalrun/macro';
 
 export default AbstractIndexRoute.extend(DateFormat, {
-  database: Ember.inject.service(),
+  database: service(),
   itemsPerPage: null, // Fetch all outpatient visits as one page
   modelName: 'visit',
   newButtonAction: 'patientCheckIn',
@@ -18,13 +15,13 @@ export default AbstractIndexRoute.extend(DateFormat, {
   selectedVisitDate: null,
   showingTodaysPatients: true,
   pageTitle: computed('showingTodaysPatients', 'selectedVisitDate', function() {
-    let i18n = this.get('i18n');
+    let intl = this.get('intl');
     let showingTodaysPatients = this.get('showingTodaysPatients');
     if (showingTodaysPatients) {
-      return i18n.t('patients.titles.todaysOutpatients');
+      return intl.t('patients.titles.todaysOutpatients');
     } else {
       let selectedVisitDate = this._dateFormat(this.get('selectedVisitDate'));
-      return i18n.t('patients.titles.outpatientsForDate', { visitDate: selectedVisitDate });
+      return intl.t('patients.titles.outpatientsForDate', { visitDate: selectedVisitDate });
     }
   }),
 

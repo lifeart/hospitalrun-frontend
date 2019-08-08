@@ -1,5 +1,5 @@
 {{#edit-panel editPanelProps=editPanelProps}}
-  {{#em-form model=model submitButton=false }}
+  {{#em-form model=model submitButton=false as |form|}}
     {{partial 'inventory-basic'}}
     {{#if model.isNew}}
       <h3>{{t 'inventory.labels.purchaseInfo'}}</h3>
@@ -10,7 +10,7 @@
           <button type="button" class="close" data-dismiss="alert"><span aria-hidden="true" class="octicon octicon-x"></span><span class="sr-only">{{t 'buttons.close'}}</span></button>
           <p>
             <span class="glyphicon glyphicon-warning-sign"></span>
-            {{t 'inventory.messages.quantity' quantity=model.quantity locationQuantity=locationQuantityTotal}}
+            {{t 'inventory.messages.quantity' quantity=model.quantity locationQuantity=locationQuantityTotal htmlSafe=true}}
           </p>
           <p>{{t 'inventory.messages.adjust' difference=quantityDifferential}}</p>
         </div>
@@ -70,9 +70,9 @@
         {{#each model.locations as |location|}}
           {{#unless location.archived}}
             <tr>
-              <td>{{location.location}}</td>
+              <td class="test-location-location">{{location.location}}</td>
               <td>{{location.aisleLocation}}</td>
-              <td>{{location.quantity}}</td>
+              <td class="test-location-quantity">{{location.quantity}}</td>
               {{#if canAdjustLocation}}
                 <td>
                   <button class="btn btn-primary neutral" {{action "showAdjustment" location}}>{{t 'inventory.labels.adjust'}}</button>

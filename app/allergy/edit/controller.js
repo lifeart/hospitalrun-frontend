@@ -1,24 +1,17 @@
-import Ember from 'ember';
+import { inject as service } from '@ember/service';
+import { Promise as EmberPromise } from 'rsvp';
+import { alias } from '@ember/object/computed';
+import { set, get, computed } from '@ember/object';
 import AbstractEditController from 'hospitalrun/controllers/abstract-edit-controller';
 
-const {
-  computed,
-  computed: {
-    alias
-  },
-  get,
-  inject,
-  set
-} = Ember;
-
 export default AbstractEditController.extend({
-  i18n: inject.service(),
+  intl: service(),
   editController: alias('model.editController'),
   newAllergy: false,
 
   additionalButtons: computed('model.isNew', function() {
     let model = get(this, 'model');
-    let btn = get(this, 'i18n').t('buttons.delete');
+    let btn = get(this, 'intl').t('buttons.delete');
     let isNew = get(model, 'isNew');
     if (!isNew) {
       return [{
@@ -30,21 +23,21 @@ export default AbstractEditController.extend({
     }
   }),
 
-  title: Ember.computed('model', function() {
+  title: computed('model', function() {
     let model = get(this, 'model');
-    let i18n = get(this, 'i18n');
+    let intl = get(this, 'intl');
     let isNew = get(model, 'isNew');
     if (!isNew) {
-      return i18n.t('allergies.titles.editAllergy');
+      return intl.t('allergies.titles.editAllergy');
     } else {
-      return i18n.t('allergies.titles.addAllergy');
+      return intl.t('allergies.titles.addAllergy');
     }
   }),
 
   beforeUpdate() {
     let allergy = get(this, 'model');
     set(this, 'newAllergy', get(allergy, 'isNew'));
-    return Ember.RSVP.Promise.resolve();
+    return EmberPromise.resolve();
   },
 
   afterUpdate(allergy) {

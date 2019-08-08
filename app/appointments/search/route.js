@@ -1,16 +1,15 @@
+import { isEmpty } from '@ember/utils';
+import { computed } from '@ember/object';
 import AppointmentIndexRoute from 'hospitalrun/appointments/index/route';
 import DateFormat from 'hospitalrun/mixins/date-format';
-import Ember from 'ember';
 import moment from 'moment';
-import { translationMacro as t } from 'ember-i18n';
-
-const { computed } = Ember;
+import { t } from 'hospitalrun/macro';
 
 export default AppointmentIndexRoute.extend(DateFormat, {
   editReturn: 'appointments.search',
   filterParams: ['appointmentType', 'provider', 'status'],
   modelName: 'appointment',
-  pageTitle: computed('i18n.locale', () => {
+  pageTitle: computed('intl.locale', () => {
     return t('appointments.searchTitle');
   }),
 
@@ -25,7 +24,7 @@ export default AppointmentIndexRoute.extend(DateFormat, {
   _modelQueryParams(params) {
     let { startDate } = params;
     let maxValue = this.get('maxValue');
-    if (Ember.isEmpty(startDate)) {
+    if (isEmpty(startDate)) {
       startDate = moment();
     } else {
       startDate = moment(parseInt(startDate));
@@ -50,7 +49,7 @@ export default AppointmentIndexRoute.extend(DateFormat, {
       });
       let { startDate } = params;
       startDate = new Date();
-      if (!Ember.isEmpty(params.startDate)) {
+      if (!isEmpty(params.startDate)) {
         startDate.setTime(params.startDate);
       }
       model.set('selectedStartingDate', startDate);

@@ -1,11 +1,6 @@
----
 language: node_js
 node_js:
-  - "6"
-
-branches:
-  only:
-    - "master"
+  - '6'
 
 dist: trusty
 sudo: required
@@ -13,33 +8,31 @@ sudo: required
 addons:
   apt:
     sources:
-    - ubuntu-toolchain-r-test
+      - ubuntu-toolchain-r-test
     packages:
-    - g++-4.8
+      - g++-4.8
 cache:
+  yarn: true
   directories:
     - $HOME/.npm
     - $HOME/.cache # includes bowers cache
 
 before_install:
-  - npm config set spin false
-  - npm install -g bower phantomjs-prebuilt
-  - bower --version
-  - phantomjs --version
+  - '/sbin/start-stop-daemon --start --quiet --pidfile /tmp/custom_xvfb_99.pid --make-pidfile --background --exec /usr/bin/Xvfb -- :99 -ac -screen 0 1024x768x24'
+  - yarn global add greenkeeper-lockfile@1
 
 install:
-  - npm install
-  - bower install
+  - yarn install --silent
   - export DISPLAY=':99.0'
-  - Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
+
+before_script: greenkeeper-lockfile-update
 
 script:
-  - npm run $COMMAND
+  - yarn run $COMMAND
+
+after_script: greenkeeper-lockfile-upload
 
 env:
   matrix:
-  - COMMAND=test
-  - CXX=g++-4.8 COMMAND=electron-test
-
-
-
+    - COMMAND=test
+    - CXX=g++-4.8 COMMAND=electron-test
